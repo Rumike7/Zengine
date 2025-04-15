@@ -3,15 +3,7 @@
 #include <cmath>
 #include "color.h"
 #include "vec3.h"
-
-// Ray class
-class Ray {
-public:
-    Vec3 origin, direction;
-    Ray() {}
-    Ray(const Vec3& orig, const Vec3& dir) : origin(orig), direction(dir) {}
-    Vec3 at(float t) const { return origin + direction * t; }
-};
+#include "ray.h"
 
 // Hittable base class and HitRecord struct
 struct HitRecord {
@@ -35,9 +27,9 @@ public:
     Sphere(const Vec3& c, float r) : center(c), radius(r) {}
 
     bool hit(const Ray& r, float t_min, float t_max, HitRecord& rec) const override {
-        Vec3 oc = r.origin - center;
-        float a = r.direction.dot(r.direction);
-        float b = 2.0f * oc.dot(r.direction);
+        Vec3 oc = r.origin() - center;
+        float a = r.direction().dot(r.direction());
+        float b = 2.0f * oc.dot(r.direction());
         float c = oc.dot(oc) - radius * radius;
         float discriminant = b * b - 4 * a * c;
 
@@ -52,7 +44,7 @@ public:
         rec.t = t;
         rec.point = r.at(t);
         Vec3 outward_normal = (rec.point - center) * (1 / radius);
-        rec.front_face = r.direction.dot(outward_normal) < 0;
+        rec.front_face = r.direction().dot(outward_normal) < 0;
         rec.normal = rec.front_face ? outward_normal : -outward_normal;
         return true;
     }
@@ -64,7 +56,7 @@ Vec3 ray_color(const Ray& r, const Hittable& world) {
     if (world.hit(r, 0.0f, 1e30f, rec)) {
         return Vec3(0.5f * (rec.normal.x + 1), 0.5f * (rec.normal.y + 1), 0.5f * (rec.normal.z + 1));
     }
-    Vec3 unit_dir = r.direction.normalized();
+    Vec3 unit_dir = r.direction().normalized();
     float t = 0.5f * (unit_dir.y + 1.0f);
     return Vec3(1.0f, 1.0f, 1.0f) * (1.0f - t) + Vec3(0.5f, 0.7f, 1.0f) * t;
 }

@@ -12,9 +12,9 @@ public:
     Sphere(const Vec3& c, float r) : center(c), radius(r) {}
 
     bool hit(const Ray& r, float t_min, float t_max, HitRecord& rec) const override {
-        Vec3 oc = r.origin - center;
-        float a = r.direction.dot(r.direction);
-        float b = 2.0f * oc.dot(r.direction);
+        Vec3 oc = r.origin() - center;
+        float a = r.direction().dot(r.direction());
+        float b = 2.0f * oc.dot(r.direction());
         float c = oc.dot(oc) - radius * radius;
         float discriminant = b * b - 4 * a * c;
 
@@ -29,7 +29,7 @@ public:
         rec.t = t;
         rec.point = r.at(t);
         Vec3 outward_normal = (rec.point - center) * (1 / radius);
-        rec.front_face = r.direction.dot(outward_normal) < 0;
+        rec.front_face = r.direction().dot(outward_normal) < 0;
         rec.normal = rec.front_face ? outward_normal : -outward_normal;
         return true;
     }
