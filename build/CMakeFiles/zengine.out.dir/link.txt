@@ -1,0 +1,3 @@
+"C:\Program Files\CMake\bin\cmake.exe" -E rm -f CMakeFiles\zengine.out.dir/objects.a
+C:\ProgramData\mingw64\mingw64\bin\ar.exe qc CMakeFiles\zengine.out.dir/objects.a @CMakeFiles\zengine.out.dir\objects1.rsp
+C:\ProgramData\mingw64\mingw64\bin\g++.exe -g -Wl,--stack,8388608 -Wl,--whole-archive CMakeFiles\zengine.out.dir/objects.a -Wl,--no-whole-archive -o zengine.out.exe -Wl,--out-implib,libzengine.out.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\zengine.out.dir\linkLibs.rsp

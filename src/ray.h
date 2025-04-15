@@ -4,11 +4,21 @@
 #include "vec3.h"
 
 class Ray {
-public:
-    Vec3 origin, direction;
+  public:
     Ray() {}
-    Ray(const Vec3& orig, const Vec3& dir) : origin(orig), direction(dir) {}
-    Vec3 at(float t) const { return origin + direction * t; }
+
+    Ray(const point3& origin, const Vec3& direction) : orig(origin), dir(direction) {}
+
+    const point3& origin() const  { return orig; }
+    const Vec3& direction() const { return dir; }
+
+    point3 at(double t) const {
+        return orig + t*dir;
+    }
+
+  private:
+    point3 orig;
+    Vec3 dir;
 };
 
 #endif
