@@ -1,18 +1,18 @@
 #ifndef HITTABLE_H
 #define HITTABLE_H
 
-#include "ray.h"
+#include "utility.h"
 
-struct HitRecord {
-    Vec3 point;
-    Vec3 normal;
+struct hit_record {
+    vec3 point;
+    vec3 normal;
     float t;
     bool front_face;
 };
 
-class Hittable {
+class hittable {
 public:
-    virtual bool hit(const Ray& r, float t_min, float t_max, HitRecord& rec) const = 0;
+    virtual bool hit(const ray& r, interval ray_t, hit_record& rec) const = 0;
 };
 
 #endif

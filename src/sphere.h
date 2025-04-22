@@ -2,17 +2,17 @@
 #define SPHERE_H
 
 #include "hittable.h"
-#include "vec3.h"
+#include "utility.h"
 
-class Sphere : public Hittable {
+class sphere : public hittable {
 public:
-    Vec3 center;
+    vec3 center;
     float radius;
 
-    Sphere(const Vec3& c, float r) : center(c), radius(r) {}
+    sphere(const vec3& c, float r) : center(c), radius(r) {}
 
-    bool hit(const Ray& r, float t_min, float t_max, HitRecord& rec) const override {
-        Vec3 oc = r.origin() - center;
+    bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
+        vec3 oc = r.origin() - center;
         float a = r.direction().dot(r.direction());
         float b = 2.0f * oc.dot(r.direction());
         float c = oc.dot(oc) - radius * radius;
@@ -21,15 +21,16 @@ public:
         if (discriminant < 0) return false;
         float sqrt_d = std::sqrt(discriminant);
         float t = (-b - sqrt_d) / (2.0f * a);
-        if (t < t_min || t > t_max) {
+        if (!ray_t.surrounds(t)) {
             t = (-b + sqrt_d) / (2.0f * a);
-            if (t < t_min || t > t_max) return false;
+            if (!ray_t.surrounds(t))
+                return false;
         }
 
         rec.t = t;
         rec.point = r.at(t);
-        Vec3 outward_normal = (rec.point - center) * (1 / radius);
-        rec.front_face = r.direction().dot(outward_normal) < 0;
+        vec3 outward_normal = (rec.point - center) * (1 / radius);
+        rec.front_face = r.direction().dot(outward_normal) < 0;// Like a V, incidence from outside so the incidence will and normal will be obtus
         rec.normal = rec.front_face ? outward_normal : -outward_normal;
         return true;
     }
