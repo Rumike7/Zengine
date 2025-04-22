@@ -1,9 +1,7 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/zengine.dir/src/main.cpp.obj"
-  "CMakeFiles/zengine.dir/src/main.cpp.obj.d"
-  "libzengine.dll.a"
-  "zengine.exe"
-  "zengine.exe.manifest"
+  "CMakeFiles/zengine.dir/src/main.cpp.o"
+  "CMakeFiles/zengine.dir/src/main.cpp.o.d"
+  "zengine"
   "zengine.pdb"
 )
 

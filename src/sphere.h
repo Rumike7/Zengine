@@ -4,12 +4,15 @@
 #include "hittable.h"
 #include "utility.h"
 
+using point3 = vec3;
 class sphere : public hittable {
 public:
-    vec3 center;
-    float radius;
+    point3 center;
+    double radius;
+    shared_ptr<material> mat;
 
-    sphere(const vec3& c, float r) : center(c), radius(r) {}
+    sphere(const point3& center, double radius, shared_ptr<material> mat)
+      : center(center), radius(std::fmax(0,radius)), mat(mat) {}
 
     bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
         vec3 oc = r.origin() - center;
@@ -28,10 +31,11 @@ public:
         }
 
         rec.t = t;
-        rec.point = r.at(t);
-        vec3 outward_normal = (rec.point - center) * (1 / radius);
+        rec.p = r.at(t);
+        vec3 outward_normal = (rec.p - center) * (1 / radius);
         rec.front_face = r.direction().dot(outward_normal) < 0;// Like a V, incidence from outside so the incidence will and normal will be obtus
         rec.normal = rec.front_face ? outward_normal : -outward_normal;
+        rec.mat = mat;
         return true;
     }
 };
