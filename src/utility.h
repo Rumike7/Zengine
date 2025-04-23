@@ -83,10 +83,6 @@ const interval interval::universe = interval(-infinity, +infinity);
 #ifndef COLOR_H
 #define COLOR_H
 
-#include "vec3.h"
-
-#include <iostream>
-
 using color = vec3;
 
 inline double linear_to_gamma(double linear_component)
@@ -107,7 +103,7 @@ void write_color(std::ostream& out, const color& pixel_color) {
     int rbyte = int(256 * intensity.clamp(r));
     int gbyte = int(256 * intensity.clamp(g));
     int bbyte = int(256 * intensity.clamp(b));
-    
+        
     // Write out the pixel color components.
     out << rbyte << ' ' << gbyte << ' ' << bbyte << '\n';
 }
