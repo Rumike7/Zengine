@@ -1,12 +1,12 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
-#include "hittable_list.h"
 #include "utility.h"
 #include "sphere.h"
 #include "hittable.h"
 #include "material.h"
 #include "camera.h"
+#include "bvh.h"
 
 
 // Main function
@@ -65,18 +65,17 @@ int main() {
                     // diffuse
                     auto albedo = color::random() * color::random();
                     sphere_material = make_shared<lambertian>(albedo);
-                    world.add(make_shared<sphere>(center, 0.2, sphere_material));
                 } else if (choose_mat < 0.95) {
                     // metal
                     auto albedo = color::random(0.5, 1);
                     auto fuzz = random_double(0, 0.5);
                     sphere_material = make_shared<metal>(albedo, fuzz);
-                    world.add(make_shared<sphere>(center, 0.2, sphere_material));
                 } else {
                     // glass
                     sphere_material = make_shared<dielectric>(1.5);
-                    world.add(make_shared<sphere>(center, 0.2, sphere_material));
                 }
+                auto center2 = center + vec3(0, random_double(0,.5), 0);
+                world.add(make_shared<sphere>(center, center2, 0.2, sphere_material));
             }
         }
     }
@@ -90,6 +89,9 @@ int main() {
     auto material3 = make_shared<metal>(color(0.7, 0.6, 0.5), 0.0);
     world.add(make_shared<sphere>(point3(4, 1, 0), 1.0, material3));
 
+    world = hittable_list(make_shared<bvh_node>(world));
+
+
     camera cam;
 
     cam.aspect_ratio      = 16.0 / 9.0;
@@ -97,7 +99,7 @@ int main() {
     cam.samples_per_pixel = 500;
     cam.max_depth         = 50;
 
-    cam.vfov     = 20;
+    cam.vfov     = 90;
     cam.lookfrom = point3(13,2,3);
     cam.lookat   = point3(0,0,0);
     cam.vup      = vec3(0,1,0);

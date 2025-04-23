@@ -39,6 +39,7 @@ class camera {
                     pixel_color += ray_color(r, max_depth, world);
 
                 }
+                // std::cerr << pixel_color.x() << "\n";
                 
                 write_color(ofs, pixel_samples_scale * pixel_color);
             }
@@ -135,7 +136,9 @@ class camera {
 
       auto ray_direction = pixel_sample - ray_origin;
       
-      return ray(ray_origin, ray_direction);
+      auto ray_time = random_double();
+       
+      return ray(ray_origin, ray_direction, ray_time);
     }
 
     point3 defocus_disk_sample() const {

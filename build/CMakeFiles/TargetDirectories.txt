@@ -1,3 +1,0 @@
-/home/rumike/Documents/AE/Zengine/build/CMakeFiles/zengine.dir
-/home/rumike/Documents/AE/Zengine/build/CMakeFiles/edit_cache.dir
-/home/rumike/Documents/AE/Zengine/build/CMakeFiles/rebuild_cache.dir

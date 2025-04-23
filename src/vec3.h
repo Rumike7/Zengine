@@ -144,6 +144,10 @@ inline vec3 random_in_unit_disk() {
             return p;
     }
 }
+inline int random_int(int min, int max) {
+    // Returns a random integer in [min,max].
+    return int(random_double(min, max+1));
+}
 
 
 #endif
