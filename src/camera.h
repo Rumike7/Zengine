@@ -2,6 +2,7 @@
 #define CAMERA_H
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h> // Add SDL_ttf for text rendering
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -43,6 +44,19 @@ public:
             throw std::runtime_error("SDL initialization failed");
         }
 
+        // // Initialize SDL_ttf
+        // if (TTF_Init() == -1) {
+        //     std::cerr << "TTF_Init failed: " << TTF_GetError() << "\n";
+        //     throw std::runtime_error("SDL_ttf initialization failed");
+        // }
+
+        // // Load a font (adjust path and size as needed)
+        // font = TTF_OpenFont("/path/to/your/font.ttf", 24);
+        // if (!font) {
+        //     std::cerr << "Failed to load font: " << TTF_GetError() << "\n";
+        //     throw std::runtime_error("Font loading failed");
+        // }
+
         // Initialize GUI
         gui_buttons.push_back({
             {render_width + 20, 20, 160, 40}, // x, y, w, h
@@ -53,6 +67,8 @@ public:
     }
 
     ~camera() {
+        // if (font) TTF_CloseFont(font);
+        // TTF_Quit();
         if (renderer) SDL_DestroyRenderer(renderer);
         if (window) SDL_DestroyWindow(window);
         SDL_Quit();
@@ -101,9 +117,6 @@ public:
 
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
             SDL_RenderClear(renderer);
-
-            // Draw GUI
-            draw_gui();
 
             // Multithreaded rendering
             const int num_threads = std::thread::hardware_concurrency();
@@ -166,6 +179,9 @@ public:
             SDL_RenderClear(renderer);
             SDL_RenderCopy(renderer, texture, NULL, NULL);
             
+            // Draw GUI
+            draw_gui();
+
             // Draw crosshair (white, 10-pixel lines)
             // SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // White
             // int center_x = width / 2;
@@ -194,6 +210,7 @@ private:
     SDL_Window* window = nullptr;       // SDL window
     SDL_Renderer* renderer = nullptr;   // SDL renderer
     std::vector<gui_button> gui_buttons; // GUI elements
+    // TTF_Font* font = nullptr; // Font for rendering button labels
 
     bool initialize() {
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -326,6 +343,24 @@ private:
             // Button border (white)
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
             SDL_RenderDrawRect(renderer, &button.rect);
+        
+            // Render button label
+            // SDL_Color text_color = {255, 255, 255, 255}; // White text
+            // SDL_Surface* text_surface = TTF_RenderText_Solid(font, button.label.c_str(), text_color);
+            // if (text_surface) {
+            //     SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
+            //     if (text_texture) {
+            //         SDL_Rect text_rect = {
+            //             button.rect.x + 10, // Offset text slightly inside button
+            //             button.rect.y + (button.rect.h - text_surface->h) / 2, // Center vertically
+            //             text_surface->w,
+            //             text_surface->h
+            //         };
+            //         SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
+            //         SDL_DestroyTexture(text_texture);
+            //     }
+            //     SDL_FreeSurface(text_surface);
+            // }
         }
     }
 

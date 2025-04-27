@@ -9,11 +9,15 @@ set(CMAKE_BUILD_TYPE Debug)
 find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
 
+# Find SDL2_ttf
+find_package(SDL2_ttf REQUIRED)
+include_directories(${SDL2_TTF_INCLUDE_DIRS})
+
 # Add executable
 add_executable(zengine ../src/main.cpp)
 
-# Link SDL2
-target_link_libraries(zengine PRIVATE ${SDL2_LIBRARIES})
+# Link SDL2 and SDL2_ttf
+target_link_libraries(zengine PRIVATE ${SDL2_LIBRARIES} ${SDL2_TTF_LIBRARIES})
 
 # Windows-specific: Ensure console compatibility
 if (WIN32)
