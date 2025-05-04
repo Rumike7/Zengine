@@ -1,0 +1,10 @@
+{
+    "includePath": [
+        "${workspaceFolder}/imgui",
+        "${workspaceFolder}/imgui/backends",
+        "${workspaceFolder}/imgui/misc/cpp",
+        "/usr/include/SDL2",
+        "/usr/local/include",
+        "/usr/include"
+    ]
+}

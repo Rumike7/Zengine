@@ -9,22 +9,38 @@ using point3 = vec3;
 class sphere : public hittable {
   public:
     // Stationary Sphere
-    sphere(const point3& static_center, double radius, shared_ptr<material> mat)
+    sphere(const point3& static_center, double radius, shared_ptr<material> mat,int id)
       : center(static_center, vec3(0,0,0)), radius(std::fmax(0,radius)), mat(mat)
     {
-        auto rvec = vec3(radius, radius, radius);
-        bbox = aabb(static_center - rvec, static_center + rvec);
+      this->id = id;
+      set_bounding_box();
+
     }
 
-    // Moving Sphere
-    sphere(const point3& center1, const point3& center2, double radius,
-           shared_ptr<material> mat)
+    // Moving Sphere // Motion blur
+    sphere(const point3& center1, const point3& center2, double radius, shared_ptr<material> mat, int id)
       : center(center1, center2 - center1), radius(std::fmax(0,radius)), mat(mat)
     {
+      this->id = id;
+      set_bounding_box();
+    }
+
+
+
+    void set_bounding_box() override {
         auto rvec = vec3(radius, radius, radius);
         aabb box1(center.at(0) - rvec, center.at(0) + rvec);
         aabb box2(center.at(1) - rvec, center.at(1) + rvec);
         bbox = aabb(box1, box2);
+    }
+
+    void move_by(const point3& offset) override {
+        // Preserve motion blur by translating center1 and center2
+        vec3 velocity = center.direction(); // center2 - center1
+        point3 center1 = center.origin();
+        point3 center2 = center1 + velocity;
+        center = ray(center1 + offset, velocity); // Update center1, keep velocity
+        set_bounding_box();
     }
 
     bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
@@ -58,13 +74,19 @@ class sphere : public hittable {
         return true;
     }
 
-    aabb bounding_box() const override { return bbox; }
+    std::ostream& print(std::ostream& out) const override{
+        out << "Sphere("
+            << "center=" << center
+            << ", radius=" << radius << ")";
+        return out;
+    }
+
+
 
   private:
     ray center;
     double radius;
     shared_ptr<material> mat;
-    aabb bbox;
 
     // y, x, z =−cos(θ), −cos(ϕ)sin(θ), sin(ϕ)sin(θ)
     static void get_sphere_uv(const point3& p, double& u, double& v) {
@@ -82,8 +104,6 @@ class sphere : public hittable {
         v = theta / pi;
     }
 };
-
-
 #endif
 
-
+//  std::shared_ptr<sphere> sphere0 = std::make_shared<sphere>(*static_cast<sphere*>(obj.get()));            std::clog << (*sphere0) << "\n";

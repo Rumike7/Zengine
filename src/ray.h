@@ -28,4 +28,11 @@ class ray {
     double tm;
 };
 
+std::ostream& operator<<(std::ostream& out, const ray& r) {
+    out << "Ray(origin=" << r.origin() 
+        << ", direction=" << r.direction() 
+        << ", time=" << r.time() << ")";
+    return out;
+}
+
 #endif

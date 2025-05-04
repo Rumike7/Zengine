@@ -30,13 +30,19 @@ public:
     virtual ~hittable() = default;
 
     virtual bool hit(const ray& r, interval ray_t, hit_record& rec) const = 0;
-    virtual aabb bounding_box() const = 0;
+    virtual void set_bounding_box() {};
+    virtual void move_by(const point3& offset) {};
+    virtual int get_id() const { return id; } 
+    virtual aabb bounding_box() const { return bbox; }
+    virtual std::ostream& print(std::ostream& out) const = 0;
 
+protected:
+    int id = -1; // Set by scene
+    aabb bbox;
 };
-
-
-#include <memory>
-#include <vector>
+std::ostream& operator<<(std::ostream& out, const hittable& h) {
+    return h.print(out);
+}
 
 using std::make_shared;
 using std::shared_ptr;
@@ -47,13 +53,14 @@ class hittable_list : public hittable {
 
     hittable_list() {}
     hittable_list(shared_ptr<hittable> object) { add(object); }
-
+    hittable_list(int id){
+        this->id = id; 
+    }
     void clear() { objects.clear(); }
 
     void add(shared_ptr<hittable> object) {
         objects.push_back(object);
         bbox = aabb(bbox, object->bounding_box());
-
     }
 
     bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
@@ -68,13 +75,16 @@ class hittable_list : public hittable {
                 rec = temp_rec;
             }
         }
-
         return hit_anything;
     }
-    aabb bounding_box() const override { return bbox; }
 
-  private:
-    aabb bbox;
+    std::ostream& print(std::ostream& out)  const override{
+        for(int i = 0; i < objects.size(); i++){
+            objects[i]->print(out);
+            if(i+1 < objects.size())out << "\n";
+        }
+        return out;
+    }
 };
 
 class translate : public hittable {
@@ -97,13 +107,13 @@ class translate : public hittable {
 
         return true;
     }
-    aabb bounding_box() const override { return bbox; }
 
-
+    std::ostream& print(std::ostream& out) const override{
+        return out;
+    }
   private:
     shared_ptr<hittable> object;
     vec3 offset;
-    aabb bbox;
 
 };
 
@@ -182,14 +192,15 @@ class rotate_y : public hittable {
         return true;
     }
 
+    std::ostream& print(std::ostream& out)  const override{
+        return out;
+    }
 
-    aabb bounding_box() const override { return bbox; }
 
   private:
     shared_ptr<hittable> object;
     double sin_theta;
     double cos_theta;
-    aabb bbox;
 };
 
 

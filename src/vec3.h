@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <ostream>
 
 class vec3 {
   public:
@@ -65,9 +66,11 @@ using point3 = vec3;
 
 // Vector Utility Functions
 
-inline std::ostream& operator<<(std::ostream& out, const vec3& v) {
-    return out << v.e[0] << ' ' << v.e[1] << ' ' << v.e[2];
+std::ostream& operator<<(std::ostream& out, const vec3& v) {
+    out << "(" << v.x() << ", " << v.y() << ", " << v.z() << ")";
+    return out;
 }
+
 
 inline vec3 operator+(const vec3& u, const vec3& v) {
     return vec3(u.e[0] + v.e[0], u.e[1] + v.e[1], u.e[2] + v.e[2]);
@@ -148,6 +151,7 @@ inline int random_int(int min, int max) {
     // Returns a random integer in [min,max].
     return int(random_double(min, max+1));
 }
+
 
 
 #endif

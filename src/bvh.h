@@ -56,12 +56,14 @@ class bvh_node : public hittable {
         return hit_left || hit_right;
     }
 
-    aabb bounding_box() const override { return bbox; }
+    std::ostream& print(std::ostream& out)  const override{
+        return out;
+    }
+
 
   private:
     shared_ptr<hittable> left;
     shared_ptr<hittable> right;
-    aabb bbox;
 
     static bool box_compare(
         const shared_ptr<hittable> a, const shared_ptr<hittable> b, int axis_index
