@@ -5,12 +5,8 @@
 #include "sphere.h"
 #include "quad.h"
 #include "material.h"
-#include "utility.h"
 #include "bvh.h"
 #include "texture.h"
-#include "rtw_stb_image.h"
-#include "constant_medium.h"
-
 
 std::mt19937 rng(45218965);
 int rm = 6;
@@ -19,15 +15,19 @@ class scene {
 public:
     scene() {
         initialize();
-        auto ground_material = std::make_shared<lambertian>(color(0.5, 0.5, 0.5));
-        world.add(std::make_shared<sphere>(point3(0, -1000.5, -1), 1000, ground_material, next_id++));
+        grid_lines = std::make_shared<grid>(20, 0.5, color(0.7, 0.7, 0.7));
+        
+        // Add grid lines to the scene
+        if (show_grid) {
+            add_grid();
+        }
         update_bvh();
     }
 
     void add_sphere() {
         double x = random_double(-2, 2);
         double z = random_double(-3, -1);
-        auto sphere0 = std::make_shared<sphere>(point3(2, 0, -1.5), 0.5, make_shared<lambertian>(color(0, 0, 0)), next_id++);
+        auto sphere0 = std::make_shared<sphere>(point3(0, 0, 0), 0.5, make_shared<lambertian>(color(0, 0, 0)), next_id++);
         world.add(sphere0);
         objects.push_back(sphere0);
         update_bvh();
@@ -149,6 +149,18 @@ public:
         return false;
     }
 
+    point3 get_selected_position(){
+        if(selected_object_id == -1)
+        for (auto& obj : objects) {
+            if (obj->get_id() == selected_object_id) {
+                aabb bbox = obj->bounding_box();
+                point3 center = (bbox.min() + bbox.max()) * 0.5;
+                return center;
+            }
+        }
+        return point3(0, 0, 0);
+    }
+
     void move_selected(const point3& new_pos) {
         if (selected_object_id == -1) return;
 
@@ -180,6 +192,38 @@ public:
         mats.push_back(std::make_shared<diffuse_light>(color(4.0, 4.0, 4.0)));
         mats.push_back(std::make_shared<isotropic>(color(0.5, 0.5, 0.5)));
     }
+    bool is_grid_shown() const {
+        return show_grid;
+    }
+
+    void toggle_grid() {
+        show_grid = !show_grid;
+        
+        // Remove old grid lines if they exist
+        remove_grid();
+        
+        // Add new grid lines if enabled
+        if (show_grid) {
+            add_grid();
+        }
+        
+        update_bvh();
+    }
+    
+    void set_grid_size(int size, double spacing) {
+        // Remove old grid
+        remove_grid();
+        
+        // Create new grid with specified size
+        grid_lines = std::make_shared<grid>(size, spacing, color(0.7, 0.7, 0.7));
+        
+        // Add new grid if enabled
+        if (show_grid) {
+            add_grid();
+        }
+        
+        update_bvh();
+    }
 
 
 
@@ -190,12 +234,42 @@ private:
     std::vector<std::shared_ptr<hittable>> objects; // Track objects for selection
     int selected_object_id = -1; // Currently selected object
     int next_id = 0; // Incremental ID for objects
+    std::vector<std::shared_ptr<hittable>> grid_objects; // Track grid objects separately
 
     void update_bvh() {
-        bvh_world.clear();
-        auto bvh = std::make_shared<bvh_node>(world);
-        bvh_world.add(bvh);
+        if(world.objects.size()){
+            bvh_world.clear();
+            auto bvh = std::make_shared<bvh_node>(world);
+            bvh_world.add(bvh);
+
+        }
     }
+
+        std::shared_ptr<grid> grid_lines;
+    bool show_grid = true; // Grid visibility toggle
+    
+    // Add grid lines to the scene
+    void add_grid() {
+        if (!grid_lines) return;
+        
+        // Get the grid lines
+        auto lines = grid_lines->get_lines();
+        
+        // Add them to the world and track them
+        for (const auto& line : lines) {
+            world.add(line);
+            grid_objects.push_back(line);
+        }
+    }
+    
+    // Remove grid lines from the scene
+    void remove_grid() {
+        for (const auto& obj : grid_objects) {
+            world.remove(obj);
+        }
+        grid_objects.clear();
+    }
+
 };
 
 #endif

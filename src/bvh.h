@@ -59,6 +59,9 @@ class bvh_node : public hittable {
     std::ostream& print(std::ostream& out)  const override{
         return out;
     }
+    std::istream& write(std::istream& in) const override{
+        return in;
+    }
 
 
   private:

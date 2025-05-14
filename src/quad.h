@@ -80,6 +80,10 @@ class quad : public hittable {
             << ", v=" << v << ")";
         return out;
     }
+    
+    std::istream& write(std::istream& in) const override{
+        return in;
+    }
 
   private:
     point3 Q;
@@ -210,6 +214,10 @@ public:
         bbox = aabb(a, b);
     }
 
+    std::istream& write(std::istream& in) const override{
+        return in;
+    }
+
 
     point3 a; // First opposite vertex
     point3 b; // Second opposite vertex
@@ -224,4 +232,102 @@ std::ostream& operator<<(std::ostream& out, const box& b) {
         << ")";
     return out;
 }
+
+
+class grid : public hittable {
+public:
+    grid(int size = 10, double spacing = 1.0, const color& grid_color = color(0.8, 0.8, 0.8))
+        : size(size), spacing(spacing), m_color(grid_color) {
+        // Create a non-hit material for the grid
+        grid_material = std::make_shared<lambertian>(grid_color);
+    }
+
+    virtual bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
+        return false;
+    }
+
+    virtual aabb bounding_box() const override {
+        double extent = size * spacing;
+        return aabb(point3(-extent/2, -0.001, -extent/2), point3(extent/2, 0.001, extent/2));
+    }
+
+    void render(const hittable& world, int samples_per_pixel, int max_depth) {
+        // This method would be called specifically to render the grid lines
+        // It's separate from the normal rendering path
+    }
+
+    std::vector<std::shared_ptr<quad>> get_lines() const {
+        std::vector<std::shared_ptr<quad>> lines;
+        
+        // Create the grid lines
+        double half_size = size * spacing * 0.5;
+        double line_width = 0.02; // Thin lines
+        double y_level = 0.001;   // Slightly above ground level
+        
+        // Create x-axis lines (running along x, varying in z)
+        for (int i = -size/2; i <= size/2; i++) {
+            double z = i * spacing;
+            if (i == 0) continue; // Skip center line since we'll make it special
+            
+            // Create a thin quad for each line
+            point3 Q(half_size, y_level, z - line_width/2);
+            vec3 u(-2*half_size, 0, 0);
+            vec3 v(0, 0, line_width);
+            
+            // Create a line with the grid material
+            auto line = std::make_shared<quad>(Q, u, v, grid_material, -1);
+            lines.push_back(line);
+        }
+        
+        // Create z-axis lines (running along z, varying in x)
+        for (int i = -size/2; i <= size/2; i++) {
+            double x = i * spacing;
+            if (i == 0) continue; // Skip center line since we'll make it special
+            
+            // Create a thin quad for each line
+            point3 Q(x - line_width/2, y_level, half_size);
+            vec3 u(line_width, 0, 0);
+            vec3 v(0, 0, -2*half_size);
+            
+            // Create a line with the grid material
+            auto line = std::make_shared<quad>(Q, u, v, grid_material, -1);
+            lines.push_back(line);
+        }
+        
+        // Create X and Z axes with different colors (red for X, blue for Z)
+        auto x_axis_material = std::make_shared<lambertian>(color(0.9, 0.2, 0.2)); // Red for X
+        auto z_axis_material = std::make_shared<lambertian>(color(0.2, 0.2, 0.9)); // Blue for Z
+        
+        // X-axis (red)
+        point3 x_Q(-half_size, y_level, -line_width);
+        vec3 x_u(2*half_size, 0, 0);
+        vec3 x_v(0, 0, 2*line_width);
+        auto x_axis = std::make_shared<quad>(x_Q, x_u, x_v, x_axis_material, -1);
+        lines.push_back(x_axis);
+        
+        // Z-axis (blue)
+        point3 z_Q(-line_width, y_level, -half_size);
+        vec3 z_u(2*line_width, 0, 0);
+        vec3 z_v(0, 0, 2*half_size);
+        auto z_axis = std::make_shared<quad>(z_Q, z_u, z_v, z_axis_material, -1);
+        lines.push_back(z_axis);
+        
+        return lines;
+    }
+
+    std::ostream& print(std::ostream& out) const override{
+        return out;
+    }
+
+    std::istream& write(std::istream& in) const override{
+        return in;
+    }
+
+private:
+    int size;                  // Number of grid lines in each direction
+    double spacing;            // Distance between grid lines
+    color m_color;             // Grid color
+    std::shared_ptr<material> grid_material;
+};
+
 #endif

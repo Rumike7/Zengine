@@ -2,7 +2,6 @@
 #define SPHERE_H
 
 #include "hittable.h"
-#include "utility.h"
 
 using point3 = vec3;
 
@@ -79,6 +78,9 @@ class sphere : public hittable {
             << "center=" << center
             << ", radius=" << radius << ")";
         return out;
+    }
+    std::istream& write(std::istream& in) const override{
+        return in;
     }
 
 

@@ -1,29 +1,8 @@
 #ifndef HITTABLE_H
 #define HITTABLE_H
 
-#include "utility.h"
 #include "aabb.h"
-
-class material;// Tell the compiler it's a task that we'll be define later, as we only need pointer
-
-class hit_record {
-  public:
-    point3 p;
-    vec3 normal;
-    shared_ptr<material> mat;
-    double t;
-    double u;
-    double v;
-    bool front_face;
-
-    void set_face_normal(const ray& r, const vec3& outward_normal) {
-        // Sets the hit record normal vector.
-        // NOTE: the parameter `outward_normal` is assumed to have unit length.
-
-        front_face = dot(r.direction(), outward_normal) < 0;
-        normal = front_face ? outward_normal : -outward_normal;
-    }
-};
+#include "material.h"
 
 class hittable {
 public:
@@ -35,7 +14,7 @@ public:
     virtual int get_id() const { return id; } 
     virtual aabb bounding_box() const { return bbox; }
     virtual std::ostream& print(std::ostream& out) const = 0;
-
+    virtual std::istream& write(std::istream& in) const = 0;
 protected:
     int id = -1; // Set by scene
     aabb bbox;
@@ -62,6 +41,17 @@ class hittable_list : public hittable {
         objects.push_back(object);
         bbox = aabb(bbox, object->bounding_box());
     }
+    void remove(shared_ptr<hittable> object) {
+        int id = 0;
+        for(auto o : objects){
+            if(o->get_id() == object->get_id()){
+                objects.erase(objects.begin()+id);
+                break;
+            }
+            id++;
+        }
+        bbox = aabb(bbox, object->bounding_box());
+    }
 
     bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
         hit_record temp_rec;
@@ -84,6 +74,10 @@ class hittable_list : public hittable {
             if(i+1 < objects.size())out << "\n";
         }
         return out;
+    }
+
+    std::istream& write(std::istream& in) const override{
+        return in;
     }
 };
 
@@ -110,6 +104,9 @@ class translate : public hittable {
 
     std::ostream& print(std::ostream& out) const override{
         return out;
+    }
+    std::istream& write(std::istream& in) const override{
+        return in;
     }
   private:
     shared_ptr<hittable> object;
@@ -195,6 +192,9 @@ class rotate_y : public hittable {
     std::ostream& print(std::ostream& out)  const override{
         return out;
     }
+    std::istream& write(std::istream& in) const override{
+        return in;
+    }
 
 
   private:
@@ -202,6 +202,69 @@ class rotate_y : public hittable {
     double sin_theta;
     double cos_theta;
 };
+
+
+class constant_medium : public hittable {
+  public:
+    constant_medium(shared_ptr<hittable> boundary, double density, shared_ptr<texture> tex)
+      : boundary(boundary), neg_inv_density(-1/density),
+        phase_function(make_shared<isotropic>(tex))
+    {}
+
+    constant_medium(shared_ptr<hittable> boundary, double density, const color& albedo)
+      : boundary(boundary), neg_inv_density(-1/density),
+        phase_function(make_shared<isotropic>(albedo))
+    {}
+
+    bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
+        hit_record rec1, rec2;
+
+        if (!boundary->hit(r, interval::universe, rec1))
+            return false;
+
+        if (!boundary->hit(r, interval(rec1.t+0.0001, infinity), rec2))
+            return false;
+
+        if (rec1.t < ray_t.min) rec1.t = ray_t.min;
+        if (rec2.t > ray_t.max) rec2.t = ray_t.max;
+
+        if (rec1.t >= rec2.t)
+            return false;
+
+        if (rec1.t < 0)
+            rec1.t = 0;
+
+        auto ray_length = r.direction().length();
+        auto distance_inside_boundary = (rec2.t - rec1.t) * ray_length;
+        auto hit_distance = neg_inv_density * std::log(random_double());
+
+        if (hit_distance > distance_inside_boundary)
+            return false;
+
+        rec.t = rec1.t + hit_distance / ray_length;
+        rec.p = r.at(rec.t);
+
+        rec.normal = vec3(1,0,0);  // arbitrary
+        rec.front_face = true;     // also arbitrary
+        rec.mat = phase_function;
+
+        return true;
+    }
+
+    aabb bounding_box() const override { return boundary->bounding_box(); }
+
+
+    std::istream& write(std::istream& in) const override{
+        return in;
+    }
+    
+  private:
+    shared_ptr<hittable> boundary;
+    double neg_inv_density;
+    shared_ptr<material> phase_function;
+};
+
+
 
 
 #endif

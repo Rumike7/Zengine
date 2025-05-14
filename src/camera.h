@@ -8,7 +8,6 @@
 #include <thread>
 #include <vector>
 #include "hittable.h"
-#include "utility.h"
 #include "scene.h"
 #include <glad/glad.h>
 #include "imgui.h"
@@ -21,17 +20,17 @@
 class camera {
 public:
     double aspect_ratio = 16.0 / 9.0;
-    int render_width = 400;
+    int render_width = 800;
     int window_width = 1280;
     int gui_width = 300;
-    int samples_per_pixel = 1; // Reduced for real-time rendering
+    int samples_per_pixel = 2;
     int max_depth = 10;
     color background = color(0.5, 0.7, 1.0);
     double move_speed = 0.1;
     double mouse_sensitivity = 0.005;
     double vfov = 90;
-    point3 lookfrom = point3(0, 1, 0);
-    point3 lookat = point3(0, 0, -1);
+    point3 lookfrom = point3(3, 1, 0);
+    point3 lookat = point3(0, 0, 0);
     vec3 vup = vec3(0, 1, 0);
     double yaw = 0.0, pitch = 0.0;
     double defocus_angle = 0;
@@ -108,10 +107,27 @@ public:
                         int i = event.motion.x;
                         int j = event.motion.y;
                         ray r = get_ray(i, j, true);
-                        double t = -r.origin().y() / r.direction().y();
+                        // double t = -r.origin().y() / r.direction().y();
+                        // if (t > 0) {
+                        //     point3 new_pos = r.at(t);
+                        //     new_pos = point3(new_pos.x(), 0, new_pos.z());
+                        //     world.move_selected(new_pos);
+                        // }
+                        // This creates a plane perpendicular to the camera's view direction at a fixed distance
+                        vec3 camera_forward = unit_vector(vec3(
+                            cos(yaw) * cos(pitch),
+                            sin(pitch),
+                            sin(yaw) * cos(pitch)
+                        ));
+                        
+                        point3 selected_pos = world.get_selected_position();
+                        
+                        double plane_distance = dot(selected_pos - lookfrom, camera_forward);
+                        
+                        double t = plane_distance / dot(r.direction(), camera_forward);
+                        
                         if (t > 0) {
                             point3 new_pos = r.at(t);
-                            new_pos = point3(new_pos.x(), 0, new_pos.z());
                             world.move_selected(new_pos);
                         }
                     }
@@ -141,6 +157,107 @@ public:
             }
 
         }
+    }
+
+    void RenderTopBar(scene& world){
+        if (ImGui::BeginMainMenuBar()) {
+            topbar_height = ImGui::GetFrameHeight();
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("New", "Ctrl+N")) {
+                    // Handle New file action
+                    std::clog << "Menu action: New file\n";
+                }
+                if (ImGui::MenuItem("Open", "Ctrl+O")) {
+                    // Handle Open file action
+                    std::clog << "Menu action: Open file\n";
+                }
+                
+                // Open Recent submenu
+                if (ImGui::BeginMenu("Open Recent")) {
+                    // You can populate this with actual recent files
+                    if (ImGui::MenuItem("example1.scene")) {
+                        std::clog << "Menu action: Open recent - example1.scene\n";
+                    }
+                    if (ImGui::MenuItem("example2.scene")) {
+                        std::clog << "Menu action: Open recent - example2.scene\n";
+                    }
+                    if (ImGui::MenuItem("Clear Recent Files")) {
+                        std::clog << "Menu action: Clear recent files\n";
+                    }
+                    ImGui::EndMenu();
+                }
+                
+                ImGui::Separator();
+                
+                if (ImGui::MenuItem("Save", "Ctrl+S")) {
+                    // Handle Save action
+                    std::clog << "Menu action: Save file\n";
+                }
+                if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) {
+                    // Handle Save As action
+                    std::clog << "Menu action: Save file as\n";
+                }
+                
+                ImGui::Separator();
+                
+                if (ImGui::MenuItem("Exit", "Alt+F4")) {
+                    // Handle exit
+                    std::clog << "Menu action: Exit application\n";
+                    // You might want to set a flag here to close the application
+                    // e.g., window_should_close = true;
+                }
+                
+                ImGui::EndMenu();
+            }
+            
+            if (ImGui::BeginMenu("Settings")) {
+                // Theme submenu
+                if (ImGui::BeginMenu("Theme")) {
+                    if (ImGui::MenuItem("Light")) {
+                        // Set light theme
+                        ImGui::StyleColorsLight();
+                        std::clog << "Menu action: Set light theme\n";
+                    }
+                    if (ImGui::MenuItem("Dark")) {
+                        // Set dark theme
+                        ImGui::StyleColorsDark();
+                        std::clog << "Menu action: Set dark theme\n";
+                    }
+                    if (ImGui::MenuItem("Classic")) {
+                        // Set classic theme
+                        ImGui::StyleColorsClassic();
+                        std::clog << "Menu action: Set classic theme\n";
+                    }
+                    ImGui::EndMenu();
+                }
+                
+                
+                if (ImGui::BeginMenu("Grid")) {
+                    bool grid_visible = world.is_grid_shown();
+                    if (ImGui::Checkbox("Show Grid", &grid_visible)) {
+                        world.toggle_grid();
+                    }
+                    static int grid_size = 10;
+                    static float grid_spacing = 1.0f;
+                    bool grid_changed = false;
+
+                    grid_changed |= ImGui::SliderInt("Grid Size", &grid_size, 5, 50);
+                    grid_changed |= ImGui::SliderFloat("Grid Spacing", &grid_spacing, 0.1f, 2.0f, "%.1f");
+
+                    if (grid_changed && ImGui::IsItemDeactivatedAfterEdit()) {
+                        world.set_grid_size(grid_size, grid_spacing);
+                    }
+                    ImGui::EndMenu(); 
+                }
+                
+                ImGui::EndMenu();
+            }
+            
+            // You can add more menu items here (Edit, View, Help, etc.)
+            
+            ImGui::EndMainMenuBar();
+        }
+
     }
 
     bool render(scene& world) {
@@ -177,8 +294,11 @@ public:
             ImGui_ImplSDL2_NewFrame();
             ImGui::NewFrame();
 
-            ImGui::SetNextWindowPos(ImVec2(float(render_width), 0));
-            ImGui::SetNextWindowSize(ImVec2(float(gui_width), float(window_height)));
+
+            RenderTopBar(world);
+
+            ImGui::SetNextWindowPos(ImVec2(float(render_width), topbar_height));
+            ImGui::SetNextWindowSize(ImVec2(float(gui_width), float(window_height)-topbar_height));
             ImGui::Begin("Scene Controls", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
             
             // Add camera debug info to UI
@@ -187,10 +307,11 @@ public:
             ImGui::Separator();
             
             // Camera controls instructions
-            ImGui::TextWrapped("Hold right mouse button and move to rotate camera");
+            ImGui::TextWrapped("Hold RIGHT mouse button and move to rotate camera");
             ImGui::TextWrapped("WASD or arrow keys to move camera");
+            ImGui::TextWrapped("Hold LEFT mouse button to select an object and move it");
             ImGui::Separator();
-            
+            ImGui::Separator();
             
             if (ImGui::Button("Add Sphere", ImVec2(160, 40))) {
                 world.add_sphere();
@@ -220,9 +341,13 @@ public:
                 world.add_ring();
                 std::clog << "Button clicked: Add Ring\n";
             }
+            ImGui::Separator();
+
+
+
             ImGui::End();
 
-            ImGui::ShowDemoWindow();
+            // ImGui::ShowDemoWindow();
             update_camera();
 
 
@@ -287,8 +412,8 @@ public:
             glBindTexture(GL_TEXTURE_2D, 0);
 
 
-            ImGui::SetNextWindowPos(ImVec2(0, 0));
-            ImGui::SetNextWindowSize(ImVec2((float)render_width, (float)render_height));
+            ImGui::SetNextWindowPos(ImVec2(0, topbar_height));
+            ImGui::SetNextWindowSize(ImVec2((float)render_width, (float)render_height - topbar_height));
             ImGui::Begin("Render", nullptr,
                 ImGuiWindowFlags_NoTitleBar |
                 ImGuiWindowFlags_NoResize |
@@ -318,6 +443,7 @@ public:
 private:
     int window_height;
     int render_height;
+    float topbar_height;
     point3 pixel00_loc;
     vec3 pixel_delta_u;
     vec3 pixel_delta_v;
@@ -354,7 +480,7 @@ private:
         window_height = int(window_width / aspect_ratio);
         window_height = (window_height < 1) ? 1 : window_height;
 
-        window = SDL_CreateWindow("ImGui + SDL2 + OpenGL",
+        window = SDL_CreateWindow("ZEngine",
             SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height,
             SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
         gl_context = SDL_GL_CreateContext(window);
@@ -387,18 +513,24 @@ private:
         ImGui_ImplOpenGL3_Init("#version 330");
 
         pixel_samples_scale = 1.0 / samples_per_pixel;
+        vec3 look_dir = -w;
+
+        pitch = asin(look_dir.y()); 
+
+        float cos_pitch = sqrt(1.0 - look_dir.y() * look_dir.y()); 
+        if (abs(cos_pitch) > 1e-6) { 
+            yaw = atan2(look_dir.z(), look_dir.x());//arctan(y/x)
+        } else {
+            yaw = 0.0; 
+        }
         update_camera();
-        SDL_SetRelativeMouseMode(SDL_FALSE);
+        SDL_SetRelativeMouseMode(SDL_FALSE);        
         std::clog << "Camera initialized\n";
         return true;
     }
 
     void update_camera() {
-        vec3 look_dir = unit_vector(lookat - lookfrom);
-        w = -look_dir;
-        u = unit_vector(cross(vup, w));
-        v = cross(w, u);
-        look_dir = vec3(cos(pitch) * cos(yaw), sin(pitch), cos(pitch) * sin(yaw));
+        vec3 look_dir = vec3(cos(pitch) * cos(yaw), sin(pitch), cos(pitch) * sin(yaw));
         w = -unit_vector(look_dir);
         u = unit_vector(cross(vup, w));
         v = cross(w, u);
