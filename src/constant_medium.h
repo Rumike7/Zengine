@@ -1,4 +1,4 @@
-#ifndef CONSTANT_MEDIUM_H
+  #ifndef CONSTANT_MEDIUM_H
 #define CONSTANT_MEDIUM_H
 
 #include "hittable.h"

@@ -28,7 +28,7 @@ public:
     int max_depth = 10;
     color background = color(0.5, 0.7, 1.0);
     double move_speed = 0.1;
-    double mouse_sensitivity = 0.005;
+        double mouse_sensitivity = 0.005;
     double vfov = 90;
     point3 lookfrom = point3(0, 1, 0);
     point3 lookat = point3(0, 0, -1);
@@ -143,6 +143,232 @@ public:
         }
     }
 
+
+    bool renderPopup(scene& world){
+
+        
+    }
+
+
+    void RenderObjectButtons(scene& world) {
+        // Begin ImGui window
+        ImGui::Begin("Scene Controls", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+            
+        // Add camera debug info to UI
+        ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)", lookfrom.x(), lookfrom.y(), lookfrom.z());
+        ImGui::Text("Yaw: %.2f, Pitch: %.2f", yaw, pitch);
+        ImGui::Separator();
+        
+        // Camera controls instructions
+        ImGui::TextWrapped("Hold right mouse button and move to rotate camera");
+        ImGui::TextWrapped("WASD or arrow keys to move camera");
+        ImGui::Separator();
+
+        // Style adjustments for compact buttons
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 4)); // Smaller padding
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));  // Spacing between buttons
+
+        float button_size = 32.0f; 
+        float padding = ImGui::GetStyle().ItemSpacing.x;
+        float available_width = ImGui::GetContentRegionAvail().x;
+
+        // Compute max number of columns that fit
+        int columns = std::max(1, int((available_width + padding) / (button_size + padding)));
+
+        // Create a 4-column table for icon buttons
+        if (ImGui::BeginTable("ObjectGrid", columns, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_PadOuterX)) {
+            // Define icons, tooltips, and functions
+            struct ObjectButton {
+                const char* icon;
+                const char* tooltip;
+                void (*add_function)(scene&);
+            };
+            ObjectButton buttons[] = {
+                {"\uf111", "Add Sphere", [](scene& w) { w.add_sphere(); }},
+                {"\uf0c8", "Add Rectangle", [](scene& w) { w.add_rectangle(); }},
+                {"\uf466", "Add Box", [](scene& w) { w.add_box(); }},
+                {"\uf0de", "Add Triangle", [](scene& w) { w.add_triangle(); }},
+                {"\uf192", "Add Disk", [](scene& w) { w.add_disk(); }},
+                {"\uf192", "Add Ellipse", [](scene& w) { w.add_ellipse(); }},
+                {"\uf0a3", "Add Ring", [](scene& w) { w.add_ring(); }}
+            };
+
+            // Iterate through buttons and place in grid
+            for (int i = 0; i < sizeof(buttons) / sizeof(buttons[0]); ++i) {
+                ImGui::TableNextColumn();
+
+                // Create a button with the icon
+                char button_id[32];
+                snprintf(button_id, sizeof(button_id), "%s##%d", buttons[i].icon, i); // Unique ID
+                if (ImGui::Button(button_id, ImVec2(button_size, button_size))) {
+                    buttons[i].add_function(world);
+                    std::clog << "Button clicked: " << buttons[i].tooltip << "\n";
+                }
+
+                // Add tooltip on hover
+                if (ImGui::IsItemHovered()) {
+                    ImGui::BeginTooltip();
+                    ImGui::Text("%s", buttons[i].tooltip);
+                    ImGui::EndTooltip();
+                }
+            }
+            
+
+            ImGui::EndTable();
+        }
+
+
+        // Restore style
+        ImGui::PopStyleVar(2);
+
+        ImGui::Separator();
+
+        if (ImGui::Button("\uf067 Add Object", ImVec2(160, 40))) {
+            ImGui::OpenPopup("AddObjectPopup");
+        }
+        // renderPopup(world);
+        if (ImGui::BeginPopup("AddObjectPopup")) {
+            // Persistent state for modal inputs
+            static int object_type = 0;
+            static float position[3] = {0.0f, 0.0f, -1.5f}; // Default position
+            static int texture_index = 0;
+            static int material_index = 0;
+            static char name_buf[64] = "Object"; // Default name
+            static float color_values[3] = {0.8f, 0.3f, 0.3f}; // Default color RGB
+            static float color_values0[3] = {0.8f, 0.3f, 0.3f}; // Default color RGB
+            static bool color_picker_open = false;
+            static double refraction_index = 1.0;
+            static double texture_scale = 0.1;
+            static char texture_file[128] = "textures/earth.jpg";
+            static float noise_scale = 4.0f;
+            
+
+            // Object type dropdown
+            const char* object_types[] = {"Sphere", "Moving Sphere", "Quad", "Box", "Triangle", "Rectangle", "Disk", "Ellipse", "Ring"};
+            ImGui::Combo("Type", &object_type, object_types, 9);
+
+            // Position inputs
+            ImGui::InputFloat3("Position (x, y, z)", position);
+
+            // Material dropdown (assuming mats is an array of shared_ptr<material>)
+            const char* material_names[] = {"Lambertian", "Metal", "Dielectric", "Diffuse Light", "Isotropic"};
+            ImGui::Combo("Material", &material_index, material_names, 5);
+
+            
+            // Color picker - only show if not dielectric (material_index != 2)
+            if (material_index != 2) {
+                // Texture selection
+                const char* texture_types[] = {"Solid Color", "Checker", "Image", "Noise"};
+                ImGui::Combo("Texture", &texture_index, texture_types, 4);
+    
+                // Additional texture parameters based on selection
+                if (texture_index == 1) { // Checker texture
+                    ImGui::InputDouble("Checker Scale", &texture_scale, 0.01, 0.1, "%.3f");
+                    ImGui::ColorEdit3("Checker Color 1", color_values, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB);
+                    ImGui::ColorEdit3("Checker Color 2", color_values0, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB);
+                } 
+                else if (texture_index == 2) { // Image texture
+                    ImGui::InputText("Image Path", texture_file, sizeof(texture_file));
+                    ImGui::SameLine();
+                    if (ImGui::Button("Browse")) {
+                        // File dialog would go here in a real implementation
+                    }
+                }
+                else if (texture_index == 3) { // Noise texture
+                    ImGui::SliderFloat("Noise Scale", &noise_scale, 0.1f, 10.0f);
+                }else{
+                    ImGui::ColorEdit3("Color", color_values, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_PickerHueWheel);
+                }
+            }else{
+                // Refraction index input - only show if dielectric (material_index == 2)
+                ImGui::InputDouble("Refraction Index", &refraction_index, 0.01, 0.1, "%.3f");
+                
+                // Add some common presets for convenience
+                ImGui::SameLine();
+                if (ImGui::Button("Presets")) {
+                    ImGui::OpenPopup("RefractionPresets");
+                }
+                
+                if (ImGui::BeginPopup("RefractionPresets")) {
+                    ImGui::Text("Common Materials:");
+                    if (ImGui::Selectable("Air (1.000)")) refraction_index = 1.000;
+                    if (ImGui::Selectable("Water (1.333)")) refraction_index = 1.333;
+                    if (ImGui::Selectable("Glass (1.500)")) refraction_index = 1.500;
+                    if (ImGui::Selectable("Diamond (2.417)")) refraction_index = 2.417;
+                    ImGui::EndPopup();
+                }
+                
+                // Information tooltip
+                ImGui::SameLine();
+                ImGui::TextDisabled("(?)");
+                if (ImGui::IsItemHovered()) {
+                    ImGui::BeginTooltip();
+                    ImGui::Text("Refraction index determines how light bends through the material.");
+                    ImGui::Text("Common values: Air (1.000), Water (1.333), Glass (1.500), Diamond (2.417)");
+                    ImGui::EndTooltip();
+                }
+            }
+
+            // Name input
+            ImGui::InputText("Name", name_buf, sizeof(name_buf));
+
+
+                // Create textures based on selection
+            std::shared_ptr<texture> tex;
+            switch(texture_index) {
+                case 0: // Solid color
+                    tex = std::make_shared<solid_color>(color(color_values[0], color_values[1], color_values[2]));
+                    break;
+                case 1: // Checker
+                    tex = std::make_shared<checker_texture>(
+                        texture_scale,
+                        color(color_values[0], color_values[1], color_values[2]),
+                        color(color_values0[0], color_values0[1], color_values0[2])
+                    );
+                    break;
+                case 2: // Image
+                    tex = std::make_shared<image_texture>(texture_file);
+                    break;
+                case 3: // Noise
+                    tex = std::make_shared<noise_texture>(noise_scale);
+                    break;
+                default:
+                    tex = std::make_shared<solid_color>(color(color_values[0], color_values[1], color_values[2]));
+            }
+
+            std::vector<std::shared_ptr<material>> mats;
+            mats.push_back(std::make_shared<lambertian>(tex));
+            mats.push_back(std::make_shared<metal>(tex, 0.1));
+            mats.push_back(std::make_shared<dielectric>(refraction_index)); 
+            mats.push_back(std::make_shared<diffuse_light>(tex));
+            mats.push_back(std::make_shared<isotropic>(tex));
+
+            // Add button
+            if (ImGui::Button("Add")) {
+                point3 pos(position[0], position[1], position[2]);
+                auto mat = mats[material_index]; // Safe material selection
+                std::string obj_name(name_buf);
+                std::shared_ptr<hittable> obj;
+                world.add_object(pos, mat, obj_name, object_type);
+                // Reset inputs
+                object_type = 0;
+                position[0] = 0.0f; position[1] = 0.0f; position[2] = -1.5f;
+                material_index = 0;
+                strcpy(name_buf, "Object");
+
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel")) {
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
+
+        ImGui::End();
+    }
     bool render(scene& world) {
         SDL_GL_MakeCurrent(window, gl_context);
 
@@ -179,48 +405,8 @@ public:
 
             ImGui::SetNextWindowPos(ImVec2(float(render_width), 0));
             ImGui::SetNextWindowSize(ImVec2(float(gui_width), float(window_height)));
-            ImGui::Begin("Scene Controls", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
             
-            // Add camera debug info to UI
-            ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)", lookfrom.x(), lookfrom.y(), lookfrom.z());
-            ImGui::Text("Yaw: %.2f, Pitch: %.2f", yaw, pitch);
-            ImGui::Separator();
-            
-            // Camera controls instructions
-            ImGui::TextWrapped("Hold right mouse button and move to rotate camera");
-            ImGui::TextWrapped("WASD or arrow keys to move camera");
-            ImGui::Separator();
-            
-            
-            if (ImGui::Button("Add Sphere", ImVec2(160, 40))) {
-                world.add_sphere();
-                std::clog << "Button clicked: Add Sphere\n";
-            }
-            if (ImGui::Button("Add Rectangle", ImVec2(160, 40))) {
-                world.add_rectangle();
-                std::clog << "Button clicked: Add Rectangle\n";
-            }
-            if (ImGui::Button("Add Box", ImVec2(160, 40))) {
-                world.add_box();
-                std::clog << "Button clicked: Add Box\n";
-            }
-            if (ImGui::Button("Add Triangle", ImVec2(160, 40))) {
-                world.add_triangle();
-                std::clog << "Button clicked: Add Triangle\n";
-            }
-            if (ImGui::Button("Add Disk", ImVec2(160, 40))) {
-                world.add_disk();
-                std::clog << "Button clicked: Add Disk\n";
-            }
-            if (ImGui::Button("Add Ellipse", ImVec2(160, 40))) {
-                world.add_ellipse();
-                std::clog << "Button clicked: Add Ellipse\n";
-            }
-            if (ImGui::Button("Add Ring", ImVec2(160, 40))) {
-                world.add_ring();
-                std::clog << "Button clicked: Add Ring\n";
-            }
-            ImGui::End();
+            RenderObjectButtons(world);
 
             ImGui::ShowDemoWindow();
             update_camera();
@@ -371,6 +557,15 @@ private:
         io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+        io.Fonts->AddFontDefault();
+
+        // Load FontAwesome
+        static const ImWchar icons_ranges[] = { 0xe800, 0xf8ff, 0 }; // FontAwesome range
+        ImFontConfig icons_config;
+        icons_config.MergeMode = true;
+        icons_config.PixelSnapH = true;
+        io.Fonts->AddFontFromFileTTF("../assets/fa-solid-900.ttf", 16.0f, &icons_config, icons_ranges);
 
 
         glGenTextures(1, &render_texture);

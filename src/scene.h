@@ -171,6 +171,64 @@ public:
         return bvh_world;
     }
 
+
+    void add_object(point3 pos, shared_ptr<material> mat, std::string obj_name, int object_type){
+        std::shared_ptr<hittable> obj;
+
+        switch (object_type) {
+            case 0: { // Sphere
+                obj = std::make_shared<sphere>(pos, 0.5, mat, next_id++);
+                break;
+            }
+            case 1: { // Moving Sphere
+                point3 center2(pos.x() + random_double(-0.2, 0.2), pos.y(), pos.z() + random_double(-0.2, 0.2));
+                obj = std::make_shared<sphere>(pos, center2, 0.3, mat, next_id++);
+                break;
+            }
+            case 2: { // Quad
+                vec3 u(1, 0, 0), v(0, 1, 0);
+                obj = std::make_shared<quad>(pos, u, v, mat, next_id++);
+                break;
+            }
+            case 3: { // Box
+                point3 a(pos.x() - 0.3, pos.y() - 0.3, pos.z() - 0.3);
+                point3 b(pos.x() + 0.3, pos.y() + 0.3, pos.z() + 0.3);
+                obj = std::make_shared<box>(a, b, mat, next_id++);
+                break;
+            }
+            case 4: { // Triangle
+                vec3 u(0.5, 0, 0), v(0, 0.5, 0);
+                obj = std::make_shared<triangle>(pos, u, v, mat, next_id++);
+                break;
+            }
+            case 5: { // Rectangle
+                vec3 u(random_double(0.5, 1.5), 0, 0), v(0, random_double(0.5, 1.5), 0);
+                obj = std::make_shared<rectangle>(pos, u, v, mat, next_id++);
+                break;
+            }
+            case 6: { // Disk
+                vec3 u(0.6, 0, 0), v(0, 0.6, 0);
+                obj = std::make_shared<disk>(pos, u, v, mat, next_id++);
+                break;
+            }
+            case 7: { // Ellipse
+                vec3 u(0.8, 0, 0), v(0, 0.5, 0);
+                obj = std::make_shared<ellipse>(pos, u, v, mat, next_id++);
+                break;
+            }
+            case 8: { // Ring
+                vec3 u(0.6, 0, 0), v(0, 0.6, 0);
+                obj = std::make_shared<ring>(pos, u, v, mat, next_id++);
+                break;
+            }
+        }
+
+        world.add(obj);
+        objects.push_back(obj);
+        update_bvh();
+
+    }
+
     void initialize() {
         mats.clear();
         mats.push_back(std::make_shared<lambertian>(color(0.8, 0.3, 0.3)));
