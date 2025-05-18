@@ -16,12 +16,15 @@ class material {
     ) const {
         return false;
     }
+    virtual shared_ptr<texture> get_texture()const{return tex;}
+    virtual void set_texture(shared_ptr<texture> tex0){tex = tex0;}
+  private: 
+    shared_ptr<texture> tex;
 };
 //Scatter in all lamberatian distrubition based on cos0
 class lambertian : public material {
   public:
-    lambertian(const color& albedo) : tex(make_shared<solid_color>(albedo)) {}
-    lambertian(shared_ptr<texture> tex) : tex(tex) {}
+    lambertian(shared_ptr<texture> tex){set_texture(tex);}
 
     bool scatter(const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered)
     const override {
@@ -32,31 +35,30 @@ class lambertian : public material {
         scatter_direction = rec.normal;
         
         scattered = ray(rec.p, scatter_direction, r_in.time());
-        attenuation = tex->value(rec.u, rec.v, rec.p);
+        attenuation = get_texture()->value(rec.u, rec.v, rec.p);
         return true;
     }
 
-  private:
-    shared_ptr<texture> tex;
+    
 };
 
 //Perfect reflection
 class metal : public material {
   public:
-    metal(const color& albedo, double fuzz) : tex(make_shared<solid_color>(albedo)), fuzz(fuzz < 1 ? fuzz : 1) {}
-    metal(shared_ptr<texture> tex, double fuzz) : tex(tex), fuzz(fuzz < 1 ? fuzz : 1) {}
+    metal(shared_ptr<texture> tex, double fuzz) : fuzz(fuzz < 1 ? fuzz : 1) {
+      set_texture(tex);
+    }
 
     bool scatter(const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered)
     const override {
       vec3 reflected = reflect(r_in.direction(), rec.normal);
       reflected = unit_vector(reflected) + (fuzz * random_unit_vector());
       scattered = ray(rec.p, reflected, r_in.time());
-      attenuation = tex->value(rec.u, rec.v, rec.p);;
+      attenuation = get_texture()->value(rec.u, rec.v, rec.p);;
       return (dot(scattered.direction(), rec.normal) > 0);
     }
-
+    double get_fuzz(){return fuzz;}
   private:
-    shared_ptr<texture> tex;
     double fuzz;
 };
 
@@ -88,6 +90,8 @@ class dielectric : public material {
         return true;
     }
 
+  double get_refraction_index(){return refraction_index;};
+
   private:
     // Refractive index in vacuum or air, or the ratio of the material's refractive index over
     // the refractive index of the enclosing media
@@ -103,31 +107,25 @@ class dielectric : public material {
 
 class diffuse_light : public material {
   public:
-    diffuse_light(shared_ptr<texture> tex) : tex(tex) {}
-    diffuse_light(const color& emit) : tex(make_shared<solid_color>(emit)) {}
+    diffuse_light(shared_ptr<texture> tex) {set_texture(tex);}
 
     color emitted(double u, double v, const point3& p) const override {
-        return tex->value(u, v, p);
+        return get_texture()->value(u, v, p);
     }
 
-  private:
-    shared_ptr<texture> tex;
 };
 
 class isotropic : public material {
   public:
-    isotropic(const color& albedo) : tex(make_shared<solid_color>(albedo)) {}
-    isotropic(shared_ptr<texture> tex) : tex(tex) {}
+    isotropic(shared_ptr<texture> tex){set_texture(tex);}
 
     bool scatter(const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered)
     const override {
         scattered = ray(rec.p, random_unit_vector(), r_in.time());
-        attenuation = tex->value(rec.u, rec.v, rec.p);
+        attenuation = get_texture()->value(rec.u, rec.v, rec.p);
         return true;
     }
 
-  private:
-    shared_ptr<texture> tex;
 };
 
 #endif

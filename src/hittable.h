@@ -12,12 +12,22 @@ public:
     virtual void set_bounding_box() {};
     virtual void move_by(const point3& offset) {};
     virtual int get_id() const { return id; } 
+    virtual void set_id(const int& id0) { id = id0;}
+    virtual void set_name(const std::string& name0) { name = name0;}
+    virtual std::string get_name() const { return name;}
+    virtual void set_icon(const std::string& icon0) { icon = icon0;}
+    virtual std::string get_icon() const { return icon;}
+    virtual shared_ptr<material> get_material() const { return mat;}
+    virtual void set_material(shared_ptr<material> mat0){ mat = mat0;}
     virtual aabb bounding_box() const { return bbox; }
     virtual std::ostream& print(std::ostream& out) const = 0;
     virtual std::istream& write(std::istream& in) const = 0;
 protected:
     int id = -1; // Set by scene
     aabb bbox;
+    std::string name = "Object";
+    std::string icon = "\uf0a3";
+    shared_ptr<material> mat;
 };
 std::ostream& operator<<(std::ostream& out, const hittable& h) {
     return h.print(out);
@@ -32,9 +42,7 @@ class hittable_list : public hittable {
 
     hittable_list() {}
     hittable_list(shared_ptr<hittable> object) { add(object); }
-    hittable_list(int id){
-        this->id = id; 
-    }
+
     void clear() { objects.clear(); }
 
     void add(shared_ptr<hittable> object) {
@@ -66,6 +74,10 @@ class hittable_list : public hittable {
             }
         }
         return hit_anything;
+    }
+
+    void set_material(shared_ptr<material> mat)override{
+        for(auto obj : objects)obj->set_material(mat);
     }
 
     std::ostream& print(std::ostream& out)  const override{
@@ -213,7 +225,7 @@ class constant_medium : public hittable {
 
     constant_medium(shared_ptr<hittable> boundary, double density, const color& albedo)
       : boundary(boundary), neg_inv_density(-1/density),
-        phase_function(make_shared<isotropic>(albedo))
+        phase_function(make_shared<isotropic>(make_shared<solid_color>(albedo)))
     {}
 
     bool hit(const ray& r, interval ray_t, hit_record& rec) const override {

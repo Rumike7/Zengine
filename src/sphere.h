@@ -8,19 +8,17 @@ using point3 = vec3;
 class sphere : public hittable {
   public:
     // Stationary Sphere
-    sphere(const point3& static_center, double radius, shared_ptr<material> mat,int id)
-      : center(static_center, vec3(0,0,0)), radius(std::fmax(0,radius)), mat(mat)
+    sphere(const point3& static_center, double radius)
+      : center(static_center, vec3(0,0,0)), radius(std::fmax(0,radius))
     {
-      this->id = id;
       set_bounding_box();
 
     }
 
     // Moving Sphere // Motion blur
-    sphere(const point3& center1, const point3& center2, double radius, shared_ptr<material> mat, int id)
-      : center(center1, center2 - center1), radius(std::fmax(0,radius)), mat(mat)
+    sphere(const point3& center1, const point3& center2, double radius)
+      : center(center1, center2 - center1), radius(std::fmax(0,radius))
     {
-      this->id = id;
       set_bounding_box();
     }
 
@@ -88,7 +86,6 @@ class sphere : public hittable {
   private:
     ray center;
     double radius;
-    shared_ptr<material> mat;
 
     // y, x, z =−cos(θ), −cos(ϕ)sin(θ), sin(ϕ)sin(θ)
     static void get_sphere_uv(const point3& p, double& u, double& v) {

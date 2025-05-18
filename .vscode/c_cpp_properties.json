@@ -5,6 +5,7 @@
         "${workspaceFolder}/imgui/misc/cpp",
         "/usr/include/SDL2",
         "/usr/local/include",
-        "/usr/include"
+        "/usr/include",
+        "/c/SDL2/x86_64-w64-mingw32/include/SDL2"
     ]
 }

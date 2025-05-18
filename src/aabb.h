@@ -133,10 +133,12 @@ class aabb {
                 if (t0 < ray_t.max) ray_t.max = t0;
             }
 
+            return true;
             if (ray_t.max <= ray_t.min)
                 return false;
         }
-        return true;
+
+        return false;
     }
 
     int longest_axis() const {

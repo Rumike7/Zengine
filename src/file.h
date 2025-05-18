@@ -2,7 +2,6 @@
 #include <cmath>
 #include <iostream>
 #include <ostream>
-#include "scene.h"
 
 // void save_to_file(scene& world, std::string filename) {
 //     // Ensure the filename has the correct extension
@@ -98,3 +97,5 @@
 // OBJECTS <count>
 // <OBJ_TYPE> <id> <x> <y> <z> <material_index> <param1> <param2> ...
 // ...
+
+
