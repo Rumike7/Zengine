@@ -66,9 +66,9 @@ inline double linear_to_gamma(double linear_component)
 }
 
 void write_color(std::ostream& out, const color& pixel_color) {
-    auto r = pixel_color.x();
-    auto g = pixel_color.y();
-    auto b = pixel_color.z();
+    auto r = pixel_color.x;
+    auto g = pixel_color.y;
+    auto b = pixel_color.z;
 
     // Translate the [0,1] component values to the byte range [0,255].
     static const interval intensity(0.000, 0.999);
@@ -175,7 +175,7 @@ const aabb aabb::empty    = aabb(interval::empty,    interval::empty,    interva
 const aabb aabb::universe = aabb(interval::universe, interval::universe, interval::universe);
 
 aabb operator+(const aabb& bbox, const vec3& offset) {
-    return aabb(bbox.x + offset.x(), bbox.y + offset.y(), bbox.z + offset.z());
+    return aabb(bbox.x + offset.x, bbox.y + offset.y, bbox.z + offset.z);
 }
 
 aabb operator+(const vec3& offset, const aabb& bbox) {

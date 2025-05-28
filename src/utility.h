@@ -5,6 +5,17 @@
 #include <cstdlib>
 #include <random>
 
+#define GLM_ENABLE_EXPERIMENTAL
+
+#include <glm/glm.hpp>
+#include <glm/gtc/random.hpp>
+#include <glm/gtx/norm.hpp>
+#include <glm/gtx/vector_query.hpp>
+#include <iostream>
+#include <cmath>
+
+
+
 #ifndef UTILITY_H
 #define UTILITY_H
 
@@ -35,183 +46,168 @@ inline double random_double(double min, double max) {
     return min + (max-min)*random_double();
 }
 
-struct float3{
+struct float3 {
     float x, y, z;
 };
 
-// Common Headers
+// Assume random_double is defined elsewhere
+double random_double();
+double random_double(double min, double max);
 
-class vec3 {
-  public:
-    double e[3];
-    vec3() : e{0,0,0} {}
-    vec3(double e0, double e1, double e2) : e{e0, e1, e2}{}
-    double x () const{return e[0];}
-    double y()const{return e[1];}
-    double z()const{return e[2];}
-    vec3 operator-() const { return vec3(-e[0], -e[1], -e[2]); }
-    double operator[](int i) const { return e[i]; }
-    double& operator[](int i) { return e[i]; }
+// Use GLM's vec3 instead of custom vec3 class
+using vec3 = glm::vec3;
 
-    vec3& operator+=(const vec3& v) {
-        e[0] += v.e[0];
-        e[1] += v.e[1];
-        e[2] += v.e[2];
-        return *this;
-    }
-    vec3& operator-=(const vec3& v) {
-        e[0] -= v.e[0];
-        e[1] -= v.e[1];
-        e[2] -= v.e[2];
-        return *this;
-    }
-
-    vec3& operator*=(double t) {
-        e[0] *= t;
-        e[1] *= t;
-        e[2] *= t;
-        return *this;
-    }
-
-    vec3& operator/=(double t) {
-        return *this *= 1/t;
-    }
-
-    double length() const {
-        return std::sqrt(length_squared());
-    }
-
-    double length_squared() const {
-        return e[0]*e[0] + e[1]*e[1] + e[2]*e[2];
-    }
-    
-    double dot(const vec3& v) const { return e[0] * v.e[0] + e[1] * v.e[1] + e[2] * v.e[2]; }
-
-    static vec3 random() {
-        return vec3(random_double(), random_double(), random_double());
-    }
-
-    static vec3 random(double min, double max) {
-        return vec3(random_double(min,max), random_double(min,max), random_double(min,max));
-    }
-
-    bool near_zero() const {
-        // Return true if the vector is close to zero in all dimensions.
-        auto s = 1e-8;
-        return (std::fabs(e[0]) < s) && (std::fabs(e[1]) < s) && (std::fabs(e[2]) < s);
-    }
-
-    float3 to_float3() const{
-        return float3{static_cast<float>(e[0]), static_cast<float>(e[1]), static_cast<float>(e[2])};    
-    }
-
-};
-
-// point3 is just an alias for vec3, but useful for geometric clarity in the code.
-using point3 = vec3;
-
+// point3 is an alias for glm::vec3
+using point3 = glm::vec3;
 
 // Vector Utility Functions
 
 std::ostream& operator<<(std::ostream& out, const vec3& v) {
-    out << "(" << v.x() << ", " << v.y() << ", " << v.z() << ")";
+    out << "(" << v.x << ", " << v.y << ", " << v.z << ")";
     return out;
 }
 
 
-inline vec3 operator+(const vec3& u, const vec3& v) {
-    return vec3(u.e[0] + v.e[0], u.e[1] + v.e[1], u.e[2] + v.e[2]);
-}
-
-inline vec3 operator-(const vec3& u, const vec3& v) {
-    return vec3(u.e[0] - v.e[0], u.e[1] - v.e[1], u.e[2] - v.e[2]);
-}
-
-inline vec3 operator*(const vec3& u, const vec3& v) {
-    return vec3(u.e[0] * v.e[0], u.e[1] * v.e[1], u.e[2] * v.e[2]);
-}
-
 inline vec3 operator*(double t, const vec3& v) {
-    return vec3(t*v.e[0], t*v.e[1], t*v.e[2]);
+    return static_cast<float>(t) * v; // GLM scalar multiplication
 }
-
-inline bool operator==(const vec3& u, const vec3& v) {
-    return u.e[0] == v.e[0] && u.e[1] == v.e[1] && u.e[2] == v.e[2];
-}
-
-inline bool operator!=(const vec3& u, const vec3& v) {
-    return !(u == v);
-}
-
 
 inline vec3 operator*(const vec3& v, double t) {
     return t * v;
 }
 
 inline vec3 operator/(const vec3& v, double t) {
-    return (1/t) * v;
+    return v / static_cast<float>(t); // GLM scalar division
+}
+
+inline vec3 operator/(const vec3& v, const vec3& u) {
+    return v / u; // GLM component-wise division
+}
+
+inline bool operator==(const vec3& u, const vec3& v) {
+    return glm::all(glm::equal(u, v)); // GLM equality check
+}
+
+inline bool operator!=(const vec3& u, const vec3& v) {
+    return !glm::all(glm::equal(u, v)); // GLM inequality check
 }
 
 inline double dot(const vec3& u, const vec3& v) {
-    return u.e[0] * v.e[0]
-         + u.e[1] * v.e[1]
-         + u.e[2] * v.e[2];
+    return glm::dot(u, v); // GLM dot product
 }
 
 inline vec3 cross(const vec3& u, const vec3& v) {
-    return vec3(u.e[1] * v.e[2] - u.e[2] * v.e[1],
-                u.e[2] * v.e[0] - u.e[0] * v.e[2],
-                u.e[0] * v.e[1] - u.e[1] * v.e[0]);
+    return glm::cross(u, v); // GLM cross product
 }
 
 inline vec3 unit_vector(const vec3& v) {
-    return v / v.length();
+    return glm::normalize(v); // GLM normalization
 }
 
 inline vec3 random_unit_vector() {
-    while (true) {
-        auto p = vec3::random(-1,1);
-        auto lensq = p.length_squared();
-        if (lensq <= 1)
-            return p / sqrt(lensq);
-    }
+    return glm::normalize(vec3(random_double(-1, 1), random_double(-1, 1), random_double(-1, 1)));
 }
 
 inline vec3 random_on_hemisphere(const vec3& normal) {
     vec3 on_unit_sphere = random_unit_vector();
-    if (dot(on_unit_sphere, normal) > 0.0) // In the same hemisphere as the normal
+    if (glm::dot(on_unit_sphere, normal) > 0.0f) {
         return on_unit_sphere;
-    else
-        return -on_unit_sphere;
+    }
+    return -on_unit_sphere;
 }
 
 inline vec3 reflect(const vec3& v, const vec3& n) {
-    return v - 2*dot(v,n)*n;
+    return glm::reflect(v, n); // GLM reflection
 }
-//etai_over_etat : n1/n2
+
 inline vec3 refract(const vec3& uv, const vec3& n, double etai_over_etat) {
-    auto cos_theta = std::fmin(dot(-uv, n), 1.0);
-    vec3 r_out_perp =  etai_over_etat * (uv + cos_theta*n);
-    vec3 r_out_parallel = -std::sqrt(std::fabs(1.0 - r_out_perp.length_squared())) * n;
-    return r_out_perp + r_out_parallel;
+    return glm::refract(uv, n, static_cast<float>(etai_over_etat)); // GLM refraction
 }
 
 inline vec3 random_in_unit_disk() {
-    while (true) {
-        auto p = vec3(random_double(-1,1), random_double(-1,1), 0);
-        if (p.length_squared() < 1)
-            return p;
-    }
+    return glm::sphericalRand(1.0f); // GLM random in unit disk
 }
+
 inline int random_int(int min, int max) {
-    // Returns a random integer in [min,max].
-    return int(random_double(min, max+1));
+    return static_cast<int>(random_double(min, max + 1));
 }
 
+vec3 from_float3(const float3& f) {
+    return vec3(f.x, f.y, f.z);
+}
 
+class mat3 {
+public:
+    mat3() : data{0} {}
+    mat3(const vec3& col1, const vec3& col2, const vec3& col3) {
+        data[0] = col1.x; data[3] = col2.x; data[6] = col3.x;
+        data[1] = col1.y; data[4] = col2.y; data[7] = col3.y;
+        data[2] = col1.z; data[5] = col2.z; data[8] = col3.z;
+    }
 
+    // Matrix-vector multiplication
+    vec3 operator*(const vec3& v) const {
+        return vec3(
+            data[0] * v.x + data[3] * v.y + data[6] * v.z,
+            data[1] * v.x + data[4] * v.y + data[7] * v.z,
+            data[2] * v.x + data[5] * v.y + data[8] * v.z
+        );
+    }
 
-#endif
+    // Matrix inverse (using adjugate method)
+    mat3 inverse() const {
+        double det = data[0] * (data[4] * data[8] - data[7] * data[5]) -
+                     data[3] * (data[1] * data[8] - data[7] * data[2]) +
+                     data[6] * (data[1] * data[5] - data[4] * data[2]);
+        if (std::abs(det) < 1e-8) {
+            // Return identity matrix for singular case to avoid division by zero
+            return mat3();
+        }
+
+        mat3 inv;
+        inv.data[0] = (data[4] * data[8] - data[7] * data[5]) / det;
+        inv.data[1] = (data[7] * data[2] - data[1] * data[8]) / det;
+        inv.data[2] = (data[1] * data[5] - data[4] * data[2]) / det;
+        inv.data[3] = (data[6] * data[5] - data[3] * data[8]) / det;
+        inv.data[4] = (data[0] * data[8] - data[6] * data[2]) / det;
+        inv.data[5] = (data[3] * data[2] - data[0] * data[5]) / det;
+        inv.data[6] = (data[3] * data[7] - data[6] * data[4]) / det;
+        inv.data[7] = (data[6] * data[1] - data[0] * data[7]) / det;
+        inv.data[8] = (data[0] * data[4] - data[3] * data[1]) / det;
+        return inv;
+    }
+
+    // Matrix transpose
+    mat3 transpose() const {
+        mat3 t;
+        t.data[0] = data[0]; t.data[3] = data[1]; t.data[6] = data[2];
+        t.data[1] = data[3]; t.data[4] = data[4]; t.data[7] = data[5];
+        t.data[2] = data[6]; t.data[5] = data[7]; t.data[8] = data[8];
+        return t;
+    }
+
+private:
+    double data[9]; // Column-major storage
+};
+
+// Extension of vec3 to include missing methods
+inline vec3 randomVec3() {
+    return vec3(random_double(), random_double(), random_double());
+}
+
+inline vec3 randomVec3(double min, double max) {
+    return vec3(random_double(min, max), random_double(min, max), random_double(min, max));
+}
+
+inline bool near_zero(const vec3& v) {
+    const float s = 1e-8;
+    return glm::all(glm::lessThan(glm::abs(v), vec3(s)));
+}
+
+inline float3 to_float3(const vec3& v) {
+    return float3{v.x, v.y, v.z};
+}
+
 
 class material;
 
@@ -266,3 +262,5 @@ class hit_record {
         normal = front_face ? outward_normal : -outward_normal;
     }
 };
+
+#endif

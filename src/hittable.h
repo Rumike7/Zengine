@@ -2,6 +2,7 @@
 #define HITTABLE_H
 
 #include "aabb.h"
+#include "rtw_stb_image.h"
 #include "material.h"
 
 class hittable {
@@ -166,15 +167,15 @@ class rotate_y : public hittable {
         // Transform the ray from world space to object space.
 
         auto origin = point3(
-            (cos_theta * r.origin().x()) - (sin_theta * r.origin().z()),
-            r.origin().y(),
-            (sin_theta * r.origin().x()) + (cos_theta * r.origin().z())
+            (cos_theta * r.origin().x) - (sin_theta * r.origin().z),
+            r.origin().y,
+            (sin_theta * r.origin().x) + (cos_theta * r.origin().z)
         );
 
         auto direction = vec3(
-            (cos_theta * r.direction().x()) - (sin_theta * r.direction().z()),
-            r.direction().y(),
-            (sin_theta * r.direction().x()) + (cos_theta * r.direction().z())
+            (cos_theta * r.direction().x) - (sin_theta * r.direction().z),
+            r.direction().y,
+            (sin_theta * r.direction().x) + (cos_theta * r.direction().z)
         );
 
         ray rotated_r(origin, direction, r.time());
@@ -187,15 +188,15 @@ class rotate_y : public hittable {
         // Transform the intersection from object space back to world space.
 
         rec.p = point3(
-            (cos_theta * rec.p.x()) + (sin_theta * rec.p.z()),
-            rec.p.y(),
-            (-sin_theta * rec.p.x()) + (cos_theta * rec.p.z())
+            (cos_theta * rec.p.x) + (sin_theta * rec.p.z),
+            rec.p.y,
+            (-sin_theta * rec.p.x) + (cos_theta * rec.p.z)
         );
 
         rec.normal = vec3(
-            (cos_theta * rec.normal.x()) + (sin_theta * rec.normal.z()),
-            rec.normal.y(),
-            (-sin_theta * rec.normal.x()) + (cos_theta * rec.normal.z())
+            (cos_theta * rec.normal.x) + (sin_theta * rec.normal.z),
+            rec.normal.y,
+            (-sin_theta * rec.normal.x) + (cos_theta * rec.normal.z)
         );
 
         return true;
@@ -265,6 +266,9 @@ class constant_medium : public hittable {
 
     aabb bounding_box() const override { return boundary->bounding_box(); }
 
+    std::ostream& print(std::ostream& out)  const override{
+        return out;
+    }
 
     std::istream& write(std::istream& in) const override{
         return in;

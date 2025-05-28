@@ -51,14 +51,21 @@ public:
             bbox = left ? left->bounding_box() : right ? right->bounding_box() : aabb::empty;
     }
 
+    bvh_node() : left(nullptr), right(nullptr), bbox(aabb::empty) {}
+
+
     bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
         if (!bbox.hit(r, ray_t))
             return false;
 
-        bool hit_left = left ? left->hit(r, ray_t, rec) : false;
-        bool hit_right = right ? right->hit(r, interval(ray_t.min, hit_left ? rec.t : ray_t.max), rec) : false;
-
-        return hit_left || hit_right;
+        bool hit_any = false;
+        if (left && left->hit(r, ray_t, rec)) {
+            hit_any = true;
+        }
+        if (right && right->hit(r, interval(ray_t.min, hit_any ? rec.t : ray_t.max), rec)) {
+            hit_any = true;
+        }
+        return hit_any;
     }
 
     std::ostream& print(std::ostream& out) const override {
@@ -127,9 +134,9 @@ public:
     bool remove(const std::shared_ptr<hittable>& obj) {
         if (!obj) {
             std::cerr << "Error: Removing null obj\n";
+        if (!left && !right) {
             return false;
         }
-        if (!left && !right) {
             return false; // Empty node
         }
 
@@ -190,7 +197,6 @@ public:
         return true;
     }
 
-    bvh_node() : left(nullptr), right(nullptr), bbox(aabb::empty) {}
 
 private:
     std::shared_ptr<hittable> left;

@@ -84,12 +84,33 @@ class quad : public hittable {
         return in;
     }
 
-  private:
     point3 Q;
     vec3 u, v;
     vec3 w;
     vec3 normal;
     double D;
+  private:
+};
+
+class ring : public quad {
+public:
+    ring(const point3& Q, const vec3& u, const vec3& v, double inner_ratio, double outer_ratio)
+        : quad(Q, u, v), inner_ratio(inner_ratio), outer_ratio(outer_ratio) {}
+
+    bool is_interior(double a, double b, hit_record& rec) const override {
+        double x = a - 0.5;
+        double y = b - 0.5;
+        double r_squared = x * x + y * y;
+        double inner_r_squared = inner_ratio * inner_ratio * 0.25;
+        double outer_r_squared = outer_ratio * outer_ratio * 0.25;
+        if (r_squared > outer_r_squared || r_squared < inner_r_squared) return false;
+        rec.u = a;
+        rec.v = b;
+        return true;
+    }
+
+private:
+    double inner_ratio, outer_ratio;
 };
 
 
@@ -107,6 +128,27 @@ public:
     }
 };
 
+
+class disk : public quad {
+public:
+    disk(const point3& Q, const vec3& u, const vec3& v, double radius)
+        : quad(Q, u, v), radius(radius) {}
+
+    bool is_interior(double a, double b, hit_record& rec) const override {
+        double dx = a - radius;
+        double dy = b - radius;
+        if ((dx*dx + dy*dy) > radius * radius) return false;
+        rec.u = a;
+        rec.v = b;
+        return true;
+    }
+
+private:
+    double radius;
+};
+
+
+
 class rectangle : public quad {
 public:
     rectangle(const point3& Q, const vec3& u, const vec3& v)
@@ -122,21 +164,8 @@ public:
     }
 };
 
-class disk : public quad {
-public:
-    disk(const point3& Q, const vec3& u, const vec3& v)
-        : quad(Q, u, v) {}
 
-    bool is_interior(double a, double b, hit_record& rec) const override {
-        // Disk: valid if (a-0.5)^2 + (b-0.5)^2 <= 0.25 (radius 0.5 in normalized coords)
-        double x = a - 0.5;
-        double y = b - 0.5;
-        if (x * x + y * y > 0.25) return false;
-        rec.u = a;
-        rec.v = b;
-        return true;
-    }
-};
+
 
 class ellipse : public quad {
 public:
@@ -152,47 +181,31 @@ public:
         rec.v = b;
         return true;
     }
+
 };
 
 
-class ring : public quad {
-public:
-    ring(const point3& Q, const vec3& u, const vec3& v)
-        : quad(Q, u, v) {}
-
-    bool is_interior(double a, double b, hit_record& rec) const override {
-        // Ring: valid if 0.04 <= (a-0.5)^2 + (b-0.5)^2 <= 0.25
-        // Outer radius = 0.5, inner radius = 0.2 in normalized coords
-        double x = a - 0.5;
-        double y = b - 0.5;
-        double r_squared = x * x + y * y;
-        if (r_squared > 0.25 || r_squared < 0.04) return false;
-        rec.u = a;
-        rec.v = b;
-        return true;
-    }
-};
 
 class box : public hittable_list {
 public:
     box(const point3& a, const point3& b)
         : hittable_list(), a(a), b(b) {
         // Compute minimum and maximum vertices
-        point3 min(std::fmin(a.x(), b.x()), std::fmin(a.y(), b.y()), std::fmin(a.z(), b.z()));
-        point3 max(std::fmax(a.x(), b.x()), std::fmax(a.y(), b.y()), std::fmax(a.z(), b.z()));
+        point3 min(std::fmin(a.x, b.x), std::fmin(a.y, b.y), std::fmin(a.z, b.z));
+        point3 max(std::fmax(a.x, b.x), std::fmax(a.y, b.y), std::fmax(a.z, b.z));
 
         // Define the vectors for the sides
-        auto dx = vec3(max.x() - min.x(), 0, 0);
-        auto dy = vec3(0, max.y() - min.y(), 0);
-        auto dz = vec3(0, 0, max.z() - min.z());
+        auto dx = vec3(max.x - min.x, 0, 0);
+        auto dy = vec3(0, max.y - min.y, 0);
+        auto dz = vec3(0, 0, max.z - min.z);
 
         // Add the six quad faces
-        objects.push_back(make_shared<quad>(point3(min.x(), min.y(), max.z()), dx, dy)); // front
-        objects.push_back(make_shared<quad>(point3(max.x(), min.y(), max.z()), -dz, dy)); // right
-        objects.push_back(make_shared<quad>(point3(max.x(), min.y(), min.z()), -dx, dy)); // back
-        objects.push_back(make_shared<quad>(point3(min.x(), min.y(), min.z()), dz, dy)); // left
-        objects.push_back(make_shared<quad>(point3(min.x(), max.y(), max.z()), dx, -dz)); // top
-        objects.push_back(make_shared<quad>(point3(min.x(), min.y(), min.z()), dx, dz)); // bottom
+        objects.push_back(make_shared<quad>(point3(min.x, min.y, max.z), dx, dy)); // front
+        objects.push_back(make_shared<quad>(point3(max.x, min.y, max.z), -dz, dy)); // right
+        objects.push_back(make_shared<quad>(point3(max.x, min.y, min.z), -dx, dy)); // back
+        objects.push_back(make_shared<quad>(point3(min.x, min.y, min.z), dz, dy)); // left
+        objects.push_back(make_shared<quad>(point3(min.x, max.y, max.z), dx, -dz)); // top
+        objects.push_back(make_shared<quad>(point3(min.x, min.y, min.z), dx, dz)); // bottom
         set_bounding_box();
     }
 
@@ -233,7 +246,7 @@ std::ostream& operator<<(std::ostream& out, const box& b) {
 
 class grid {
 public:
-    grid(int size = 10, double spacing = 1.0, const color& grid_color = color(0.05, 0.05, 0.05))
+    grid(int size = 30, double spacing = 1.0, const color& grid_color = color(0.05, 0.05, 0.05))
         : m_size(size), m_spacing(spacing), m_color(grid_color) {
         // Pre-calculate the extents of the grid
         m_half_extent = size * spacing * 0.5;
@@ -243,12 +256,12 @@ public:
     // Returns true if the point is on a grid line, false otherwise
     bool get_color_at(const point3& point, color& out_color, double line_width = 0.02) const {
         // Only check points near the grid plane (y ≈ 0)
-        if (std::abs(point.y()) > 0.05) 
+        if (std::abs(point.y) > 0.05) 
             return false;
 
         // Convert to grid space
-        double x = point.x();
-        double z = point.z();
+        double x = point.x;
+        double z = point.z;
 
         // Check if we're outside grid bounds
         if (std::abs(x) > m_half_extent || std::abs(z) > m_half_extent)
@@ -271,8 +284,8 @@ public:
         double x_mod = std::fmod(std::abs(x), m_spacing);
         double z_mod = std::fmod(std::abs(z), m_spacing);
         
-        if ((x_mod < line_width/2 || x_mod > m_spacing - line_width/2) || 
-            (z_mod < line_width/2 || z_mod > m_spacing - line_width/2)) {
+        if ((x_mod < line_width/3 || x_mod > m_spacing - line_width/3) || 
+            (z_mod < line_width/3 || z_mod > m_spacing - line_width/3)) {
             out_color = m_color;
             return true;
         }
