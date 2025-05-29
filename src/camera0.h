@@ -119,7 +119,7 @@ public:
     int button_width = 80;
     int button_height = 40;
 
-    camera() : thread_pool(std::thread::hardware_concurrency()){
+    camera() : thread_pool(std::thread::hardware_concurrency()/2){
         if (!initialize()) {
             std::cerr << "Camera initialization failed\n";
             throw std::runtime_error("SDL initialization failed");

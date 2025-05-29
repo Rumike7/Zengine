@@ -9,6 +9,7 @@
 #include <vector>
 #include "hittable.h"
 #include "scene.h"
+#include "gui.h"
 #include <glad/glad.h>
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
@@ -97,8 +98,8 @@ private:
 class camera {
 public:
     double aspect_ratio = 16.0 / 9.0;
-    int render_width = 800;
-    int window_width = 1400;
+    int render_width = 600;
+    int window_width = 900;
     int gui_width = 300;
     int samples_per_pixel = 4;
     int max_depth = 2;
@@ -128,7 +129,7 @@ public:
         ImGui_ImplSDL2_Shutdown();
         ImGui::DestroyContext();
         SDL_GL_DeleteContext(gl_context);
-        if (window) SDL_DestroyWindow(window);
+        if (gui::window) SDL_DestroyWindow(gui::window);
         SDL_Quit();
     }
 
@@ -138,7 +139,7 @@ public:
 
 
     bool render(scene& sc) {
-        SDL_GL_MakeCurrent(window, gl_context);
+        SDL_GL_MakeCurrent(gui::window, gl_context);
         SDL_PixelFormat* format = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA8888);
         if (!format) {
             std::cerr << "Failed to allocate pixel format: " << SDL_GetError() << "\n";
@@ -152,7 +153,7 @@ public:
             "• LEFT MOUSE BUTTON to select objects\n"
             "• Press ESC to exit\n"
             "• Press P to save the scene as PPM",
-            window);
+            gui::window);
 
         auto last_time = std::chrono::high_resolution_clock::now();
         const double target_frame_time = 1.0 / 60.0;
@@ -172,7 +173,7 @@ public:
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplSDL2_NewFrame();
             ImGui::NewFrame();
-            RenderTopBar(sc);
+            gui::render_top_bar(sc, running, use_defocus, vfov, focus_dist, max_depth, samples_per_pixel, pixel_samples_scale, topbar_height);
             RenderObjectButtons(sc);
 
             completed_rows = 0;
@@ -238,7 +239,7 @@ public:
                 ImGuiWindowFlags_NoResize | 
                 ImGuiWindowFlags_NoMove | 
                 ImGuiWindowFlags_NoScrollbar |
-                ImGuiWindowFlags_NoBackground  // Optional: removes window background
+                ImGuiWindowFlags_NoBackground 
             );
 
             // Button fills entire available space
@@ -258,7 +259,7 @@ public:
 
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-            SDL_GL_SwapWindow(window);
+            SDL_GL_SwapWindow(gui::window);
 
             double frame_time = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - now).count();
             if (frame_time < target_frame_time) {
@@ -307,7 +308,6 @@ private:
     vec3 defocus_disk_v;
     double viewport_width;
     double viewport_height;
-    SDL_Window* window = nullptr;
     SDL_GLContext gl_context;
     GLuint render_texture = 0;
     int selected_object_id = -1; 
@@ -318,11 +318,9 @@ private:
     bool object_grabbed = false;
     ThreadPool thread_pool;
     state st;
-    std::vector<std::string> recent_files;
     double threshold = 0.001;
     std::vector<color> pixel_buffer;
     std::vector<Uint32> pixel_data;
-    bool isSaved = true;
 
 
 
@@ -340,7 +338,7 @@ private:
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
         SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
         
-        SDL_GetWindowSize(window, &window_width, &window_height);
+        SDL_GetWindowSize(gui::window, &window_width, &window_height);
 
         render_width = std::max(600, window_width - gui_width);
         render_height = int(render_width / aspect_ratio);
@@ -354,11 +352,11 @@ private:
         std::clog << "Full-screen window size: " << window_width << "x" << window_height << "\n";
 
 
-        window = SDL_CreateWindow("Untitled - ZEngine",
+        gui::window = SDL_CreateWindow("Untitled - ZEngine",
             SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height,
             SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
-        gl_context = SDL_GL_CreateContext(window);
-        SDL_GL_MakeCurrent(window, gl_context);
+        gl_context = SDL_GL_CreateContext(gui::window);
+        SDL_GL_MakeCurrent(gui::window, gl_context);
         SDL_GL_SetSwapInterval(1);
 
         if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
@@ -394,7 +392,7 @@ private:
 
 
         ImGui::StyleColorsDark();
-        ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
+        ImGui_ImplSDL2_InitForOpenGL(gui::window, gl_context);
         ImGui_ImplOpenGL3_Init("#version 330");
 
         pixel_samples_scale = 1.0 / samples_per_pixel;
@@ -480,41 +478,6 @@ private:
         return background;
     }
 
-
-    color ray_color_adaptive(const ray& r, int depth, const scene& sc, int i, int j, std::vector<color>& pixel_buffer) const {
-        color total_color(0, 0, 0);
-        int samples = samples_per_pixel;
-        std::vector<color> sample_colors;
-
-        // Initial samples
-        for (int s = 0; s < samples; ++s) {
-            ray sample_ray = get_ray(i, j);
-            color c = ray_color(sample_ray, depth, sc);
-            total_color += c;
-            sample_colors.push_back(c);
-        }
-
-        // Compute variance
-        color mean = total_color / samples;
-        double variance = 0.0;
-        for (const auto& c : sample_colors) {
-            double diff = glm::length2(c - mean);
-            variance += diff;
-        }
-        variance /= samples;
-
-        // Add more samples if variance is high
-        if (variance > 0.01) { // Adjust threshold based on quality needs
-            for (int s = 0; s < samples_per_pixel / 2; ++s) {
-                ray sample_ray = get_ray(i, j);
-                total_color += ray_color(sample_ray, depth, sc);
-                samples++;
-            }
-        }
-
-        return total_color / samples;
-    }
-
     ray get_ray(int i, int j, bool precise = false) const {
         auto offset = precise ? vec3(0.5, 0.5, 0) : sample_square();
         auto pixel_sample = pixel00_loc
@@ -539,31 +502,6 @@ private:
         if (x < min) return min;
         if (x > max) return max;
         return x;
-    }
-
-    void updateWindowTitle(const std::string& file_name) {
-        std::string title = (file_name.empty() ? "Untitled" : file_name) + " - ZEngine";
-        SDL_SetWindowTitle(window, title.c_str());
-    }
-
-    void addToRecentFiles(const std::string& file_path) {
-        auto it = std::find(recent_files.begin(), recent_files.end(), file_path);
-        if (it != recent_files.end()) {
-            recent_files.erase(it); // Move to front if already exists
-        }
-        recent_files.insert(recent_files.begin(), file_path);
-        if (recent_files.size() > 5) {
-            recent_files.resize(5); 
-        }
-    }
-
-    std::string get_timestamp() {
-        auto now = std::chrono::system_clock::now();
-        auto time = std::chrono::system_clock::to_time_t(now);
-        std::stringstream ss;
-        ss << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
-        return ss.str();
-        return ss.str();
     }
 
     void render_object_menu(scene& sc, shared_ptr<hittable> object, int id) {
@@ -600,7 +538,7 @@ private:
 
                 if (ImGui::MenuItem("Duplicate", "Ctrl+T", false, can_duplicate)) {
                     sc.duplicate_object(id);
-                    isSaved = false;    
+                    gui::isSaved = false;    
                 }
                 if (ImGui::IsItemHovered()) {
                     ImGui::SetTooltip("Create a copy of the object");
@@ -621,7 +559,7 @@ private:
                 if (ImGui::Button("OK", ImVec2(120, 0))) {
                     
                     sc.delete_object(id);
-                    isSaved = false;    
+                    gui::isSaved = false;    
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::SameLine();
@@ -638,7 +576,6 @@ private:
                 ImGui::OpenPopup("Add or Update Object");
             }
         } catch (const std::exception& e) {
-            std::clog << "[" << get_timestamp() << "] Error in object menu: " << e.what() << "\n";
             ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Error rendering menu");
         }
         if (ImGui::IsKeyPressed(ImGuiKey_U) && io.KeyCtrl && can_update) {
@@ -649,7 +586,7 @@ private:
         }
         if (ImGui::IsKeyPressed(ImGuiKey_T) && io.KeyCtrl && can_duplicate) {
             int new_id = sc.duplicate_object(id);
-            isSaved = false;    
+            gui::isSaved = false;    
 
         }
     }   
@@ -694,7 +631,7 @@ private:
                 initialized = false;
             }
 
-            render_objects_attribute(sc);
+            gui::render_objects_attribute(sc);
 
             int current_material_type = static_cast<int>(st.material_type);
             if (ImGui::Combo("Material", &current_material_type, material_names.data(), material_names.size())) {
@@ -837,7 +774,7 @@ private:
                 initialized = false;
                 st.reset();
                 ImGui::CloseCurrentPopup();
-                isSaved = false;
+                gui::isSaved = false;
             }
 
             ImGui::SameLine();
@@ -855,229 +792,7 @@ private:
     } 
 
 
-    void RenderTopBar(scene& sc){
-        ImGuiIO& io = ImGui::GetIO(); // Ensure io is up-to-date
-
-        if (ImGui::BeginMainMenuBar()) {
-            topbar_height = ImGui::GetFrameHeight();
-            if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("New", "Ctrl+N")) {
-                    _openFile(sc, true);
-                }
-                if (ImGui::MenuItem("Open", "Ctrl+O")) {
-                    _openFile(sc, false);
-                }
-
-                // Open Recent submenu
-                if (ImGui::BeginMenu("Open Recent")) {
-                    if (recent_files.empty()) {
-                        ImGui::MenuItem("No recent files", nullptr, false, false);
-                    } else {
-                        for (const auto& file_path : recent_files) {
-                            fs::path fs_path(file_path);
-                            if (ImGui::MenuItem(fs_path.filename().string().c_str())) {
-                                if (fs::exists(file_path)) {
-                                    sc.setName(fs_path.filename().string());
-                                    updateWindowTitle(fs_path.filename().string());
-                                    sc.load_from_file(file_path);
-                                    addToRecentFiles(file_path); // Move to top
-                                    std::clog << "Menu action: Open recent - " << file_path << "\n";
-                                } else {
-                                    std::clog << "Menu action: Recent file not found - " << file_path << "\n";
-                                }
-                            }
-                        }
-                    }
-                    if (ImGui::MenuItem("Clear Recent Files")) {
-                        recent_files.clear();
-                        // Optionally, clear recent files in config file
-                        std::clog << "Menu action: Clear recent files\n";
-                    }
-                    ImGui::EndMenu();
-                }
-
-                ImGui::Separator();
-
-                if (ImGui::MenuItem("Save", "Ctrl+S")) {
-                    _openFile(sc, false);
-
-                }
-                if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S")) {
-                    _openFile(sc, true);
-                }
-
-                ImGui::Separator();
-
-                if (ImGui::MenuItem("Exit", "Alt+F4")) {
-                    running = false;
-                    std::clog << "Menu action: Exit application\n";
-                }
-
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Edit")) {
-                if (ImGui::MenuItem("Add Object", "Ctrl+U")) {
-                    ImGui::OpenPopup("Add or Update Object");
-                }
-                ImGui::Separator();
-                
-                if (ImGui::MenuItem("Undo", "Ctrl+Z")) {
-                    sc.undo();
-                }
-                if (ImGui::MenuItem("Redo", "Ctrl+Y")) {
-                    sc.redo();
-                }
-                
-                ImGui::EndMenu();
-            } 
-            if (ImGui::BeginMenu("View")) {
-                if (ImGui::BeginMenu("Grid")) {
-                    bool grid_visible = sc.is_grid_shown();
-                    if (ImGui::Checkbox("Show Grid", &grid_visible)) {
-                        sc.toggle_grid();
-                    }
-                    static int grid_size = 10;
-                    static float grid_spacing = 1.0f;
-                    bool grid_changed = false;
-
-                    grid_changed |= ImGui::SliderInt("Grid Size", &grid_size, 5, 50);
-                    grid_changed |= ImGui::SliderFloat("Grid Spacing", &grid_spacing, 0.1f, 2.0f, "%.1f");
-
-                    if (grid_changed && ImGui::IsItemDeactivatedAfterEdit()) {
-                        sc.set_grid_size(grid_size, grid_spacing);
-                    }
-                    ImGui::EndMenu(); 
-                }
-                if (ImGui::BeginMenu("Camera params")) {
-                    ImGui::Checkbox("Enable Defocus", &use_defocus);
-                    
-                    if (ImGui::SliderFloat("Field of View", &vfov, 30.0f, 120.0f, "%.1f deg"));
-                    
-                    if (ImGui::SliderFloat("Defocus Strength", &focus_dist, 0.0f, 1.0f));
-                    
-                    ImGui::EndMenu();
-                }
-                if (ImGui::BeginMenu("Render Quality")) {
-                    static int current_preset = 0; // Default to Fast
-                    
-                    if (ImGui::RadioButton("Very Fast (Preview)", &current_preset, 0)) {
-                        max_depth = 4;
-                        samples_per_pixel = 2;
-                    }
-                    ImGui::SameLine(); HelpMarker("Low quality, fast rendering");
-                    if (ImGui::RadioButton("Fast ", &current_preset, 1)) {
-                        max_depth = 8;
-                        samples_per_pixel = 4;
-                    }
-                    ImGui::SameLine(); HelpMarker("Low quality, fast rendering");
-                    if (ImGui::RadioButton("Normal", &current_preset, 2)) {
-                        max_depth = 10;
-                        samples_per_pixel = 10;
-                    }
-                    ImGui::SameLine(); HelpMarker("Balanced quality and speed");
-
-                    if (ImGui::RadioButton("Good Quality", &current_preset, 3)) {
-                        max_depth = 30;
-                        samples_per_pixel = 60;            
-                    }
-                    ImGui::SameLine(); HelpMarker("Best quality, slower rendering");
-
-                    if (ImGui::RadioButton("High Quality", &current_preset, 4)) {
-                        max_depth = 50;
-                        samples_per_pixel = 100;            
-                    }
-                    ImGui::SameLine(); HelpMarker("Best quality, slower rendering");
-
-                    if (ImGui::TreeNode("Advanced Settings")) {
-                        
-                        if (ImGui::SliderInt("Max Ray Depth", &max_depth, 2, 50)) {
-                            current_preset = -1; 
-                        }
-                        
-                        if (ImGui::SliderInt("Samples Per Pixel", &samples_per_pixel, 2, 100)) {
-                            current_preset = -1;
-                        }
-                        
-                        ImGui::TreePop();
-                    }
-
-
-                    // Add vfov       
-
-
-                    ImGui::EndMenu();
-                }
-
-
-
-                pixel_samples_scale = 1.0 / samples_per_pixel;
-
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("Settings")) {
-                // Theme submenu
-                if (ImGui::BeginMenu("Theme")) {
-                    if (ImGui::MenuItem("Light")) {
-                        // Set light theme
-                        ImGui::StyleColorsLight();
-                        std::clog << "Menu action: Set light theme\n";
-                    }
-                    if (ImGui::MenuItem("Dark")) {
-                        // Set dark theme
-                        ImGui::StyleColorsDark();
-                        std::clog << "Menu action: Set dark theme\n";
-                    }
-                    if (ImGui::MenuItem("Classic")) {
-                        // Set classic theme
-                        ImGui::StyleColorsClassic();
-                        std::clog << "Menu action: Set classic theme\n";
-                    }
-                    ImGui::EndMenu();
-                }
-                ImGui::EndMenu();
-            }
-            
-            
-            ImGui::EndMainMenuBar();
-        }
-
-        if (ImGui::IsKeyPressed(ImGuiKey_O) && io.KeyCtrl) {
-            _openFile(sc, false);
-        }
-
-        if (ImGui::IsKeyPressed(ImGuiKey_N) && io.KeyCtrl) {
-            _openFile(sc, true);
-        }
-
-
-        if (ImGui::IsKeyPressed(ImGuiKey_S) && io.KeyCtrl) {
-            _saveFile(sc, false);
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_S) && io.KeyCtrl && io.KeyShift) {
-            _saveFile(sc, true);
-        }
-
-
-        if (ImGui::IsKeyPressed(ImGuiKey_Z) && io.KeyCtrl) {
-            sc.undo();
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_Y) && io.KeyCtrl) {
-            sc.redo();
-        }
-
-    }
-
-    void HelpMarker(const char* desc) {
-        ImGui::TextDisabled("(?)");
-        if (ImGui::IsItemHovered()) {
-            ImGui::BeginTooltip();
-            ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-            ImGui::TextUnformatted(desc);
-            ImGui::PopTextWrapPos();
-            ImGui::EndTooltip();
-        }
-    }
+    
 
     void RenderObjectButtons(scene& sc) {
         ImGui::SetNextWindowPos(ImVec2(float(render_width), topbar_height));
@@ -1193,10 +908,6 @@ private:
         ImGui::End();  
 
 
-
-
-
-
     }
     void reset_camera() {
         vfov = 20;
@@ -1221,134 +932,6 @@ private:
     }
 
 
-    void render_objects_attribute(scene& sc) {
-        switch (st.object_type) {
-            case ObjectType::Sphere: {
-                ImGui::InputFloat("Radius", &st.radius(), 0.01f, 0.1f, "%.2f");
-                break;
-            }
-            case ObjectType::Box: {
-                ImGui::InputFloat3("Box Length (x, y, z)", st.box_length());
-                break;
-            }
-            case ObjectType::Cube: {
-                ImGui::InputFloat("Cube Size", &st.cube_size(), 0.01f, 0.1f, "%.2f");
-                break;
-            }
-            case ObjectType::Triangle:
-            case ObjectType::Rectangle:
-            case ObjectType::Disk:
-            case ObjectType::Ellipse:
-            case ObjectType::Ring: {
-                ImGui::InputFloat3("Vector u (x, y, z)", st.u());
-                ImGui::InputFloat3("Vector v (x, y, z)", st.v());
-                if (st.object_type == ObjectType::Disk) {
-                    ImGui::InputFloat("Radius", &st.radius(), 0.01f, 0.1f, "%.2f");
-                }
-                if (st.object_type == ObjectType::Ring) {
-                    ImGui::InputFloat("Inner Radius", &st.inner_radius(), 0.01f, 0.1f, "%.2f");
-                    ImGui::InputFloat("Outer Radius", &st.outer_radius(), 0.01f, 0.1f, "%.2f");
-                }
-                break;
-            }
-            case ObjectType::Cylinder:
-            case ObjectType::Cone:
-            case ObjectType::Frustum:
-            case ObjectType::Prism: {
-                ImGui::InputFloat3("Axis (x, y, z)", st.axis());
-                if (st.object_type != ObjectType::Frustum) {
-                    ImGui::InputFloat("Radius", &st.radius(), 0.01f, 0.1f, "%.2f");
-                } else {
-                    ImGui::InputFloat("Top Radius", &st.top_radius(), 0.01f, 0.1f, "%.2f");
-                    ImGui::InputFloat("Bottom Radius", &st.bottom_radius(), 0.01f, 0.1f, "%.2f");
-                }
-                ImGui::InputFloat("Height", &st.height(), 0.01f, 0.1f, "%.2f");
-                if (st.object_type == ObjectType::Prism) {
-                    float vertices[3][3] = {
-                        {0.5f, 0.0f, 0.5f},
-                        {-0.5f, 0.0f, 0.5f},
-                        {0.0f, 0.0f, -0.5f}
-                    };
-                    ImGui::InputFloat3("Vertex 1 (x, y, z)", vertices[0]);
-                    ImGui::InputFloat3("Vertex 2 (x, y, z)", vertices[1]);
-                    ImGui::InputFloat3("Vertex 3 (x, y, z)", vertices[2]);
-                    st.set_vertices({
-                        st.position + point3(vertices[0][0], vertices[0][1], vertices[0][2]),
-                        st.position + point3(vertices[1][0], vertices[1][1], vertices[1][2]),
-                        st.position + point3(vertices[2][0], vertices[2][1], vertices[2][2])
-                    });
-                }
-                break;
-            }
-            case ObjectType::Torus: {
-                ImGui::InputFloat("Major Radius", &st.major_radius(), 0.01f, 0.1f, "%.2f");
-                ImGui::InputFloat("Minor Radius", &st.minor_radius(), 0.01f, 0.1f, "%.2f");
-                break;
-            }
-            case ObjectType::Plane: {
-                ImGui::InputFloat3("Normal (x, y, z)", st.normal());
-                break;
-            }
-            case ObjectType::Ellipsoid: {
-                ImGui::InputFloat3("Vector a (x, y, z)", st.a());
-                ImGui::InputFloat3("Vector b (x, y, z)", st.b());
-                ImGui::InputFloat3("Vector c (x, y, z)", st.c());
-                break;
-            }
-            case ObjectType::Capsule: {
-                ImGui::InputFloat3("Second Point (x, y, z)", st.p2());
-                ImGui::InputFloat("Radius", &st.radius(), 0.01f, 0.1f, "%.2f");
-                break;
-            }
-            case ObjectType::HollowCylinder: {
-                ImGui::InputFloat3("Axis (x, y, z)", st.axis());
-                ImGui::InputFloat("Inner Radius", &st.inner_radius(), 0.01f, 0.1f, "%.2f");
-                ImGui::InputFloat("Outer Radius", &st.outer_radius(), 0.01f, 0.1f, "%.2f");
-                ImGui::InputFloat("Height", &st.height(), 0.01f, 0.1f, "%.2f");
-                break;
-            }
-            case ObjectType::Hexagon: {
-                ImGui::InputFloat3("Normal (x, y, z)", st.normal());
-                ImGui::InputFloat("Size", &st.size(), 0.01f, 0.1f, "%.2f");
-                break;
-            }
-            case ObjectType::Polyhedron: {
-                float vertices[4][3] = {
-                    {0.5f, 0.0f, 0.5f},
-                    {-0.5f, 0.0f, 0.5f},
-                    {0.0f, 0.0f, -0.5f},
-                    {0.0f, 1.0f, 0.0f}
-                };
-                ImGui::InputFloat3("Vertex 1 (x, y, z)", vertices[0]);
-                ImGui::InputFloat3("Vertex 2 (x, y, z)", vertices[1]);
-                ImGui::InputFloat3("Vertex 3 (x, y, z)", vertices[2]);
-                ImGui::InputFloat3("Vertex 4 (x, y, z)", vertices[3]);
-                st.set_vertices({
-                    st.position + point3(vertices[0][0], vertices[0][1], vertices[0][2]),
-                    st.position + point3(vertices[1][0], vertices[1][1], vertices[1][2]),
-                    st.position + point3(vertices[2][0], vertices[2][1], vertices[2][2]),
-                    st.position + point3(vertices[3][0], vertices[3][1], vertices[3][2])
-                });
-                break;
-            }
-            case ObjectType::Wedge: {
-                ImGui::InputFloat3("Point 2 (x, y, z)", st.p2());
-                ImGui::InputFloat3("Point 3 (x, y, z)", st.p3());
-                ImGui::InputFloat("Height", &st.height(), 0.01f, 0.1f, "%.2f");
-                break;
-            }
-            case ObjectType::Tetrahedron: {
-                ImGui::InputFloat3("Point 2 (x, y, z)", st.p2());
-                ImGui::InputFloat3("Point 3 (x, y, z)", st.p3());
-                ImGui::InputFloat3("Point 4 (x, y, z)", st.p4());
-                break;
-            }
-            case ObjectType::Octahedron: {
-                ImGui::InputFloat("Size", &st.size(), 0.01f, 0.1f, "%.2f");
-                break;
-            }
-        }
-    }
     std::string ExtractFilename(const std::string& path) {
         size_t last_slash = path.find_last_of("/\\");
         return (last_slash == std::string::npos) ? path : path.substr(last_slash + 1);
@@ -1359,20 +942,17 @@ private:
             ImGui_ImplSDL2_ProcessEvent(&event);
             if (event.type == SDL_QUIT ||
                 (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE &&
-                event.window.windowID == SDL_GetWindowID(window))) {
+                event.window.windowID == SDL_GetWindowID(gui::window))) {
                 running = false;
                 std::clog << "Quit event\n";
             }
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
-                // Update window dimensions
                 window_width = event.window.data1;
                 window_height = event.window.data2;
-                update_render_dimensions(); // Recalculate render dimensions and texture
-
+                update_render_dimensions();
                 pixel_buffer.resize(render_width * render_height, color(0, 0, 0));
                 pixel_data.resize(render_width * render_height);
             }
-            // Only process mouse and keyboard events if ImGui isn't capturing them
             if (!io.WantCaptureMouse) {
                 if (event.type == SDL_MOUSEBUTTONDOWN) {
                     if (event.button.button == SDL_BUTTON_LEFT && valid(event.button.x, event.button.y)) {
@@ -1394,7 +974,7 @@ private:
                         if (object_grabbed) std::clog << "Object released\n";
                         object_grabbed = false;
                         sc.move_selected(point3(0,0,0), 2);
-                        isSaved = false;
+                        gui::isSaved = false;
                     }
                     if (event.button.button == SDL_BUTTON_RIGHT) {
                         if (mouse_grabbed) std::clog << "Camera released\n";
@@ -1458,58 +1038,7 @@ private:
     }
 
 
-    void _openFile(scene& sc, bool isNew){
-        if(isNew){
-            sc = scene(); 
-            updateWindowTitle("");
-            std::clog << "Menu action: New file\n";
-            return;
-        }
-        const char* filters[] = { "*.zsc" };
-        const char* path = tinyfd_openFileDialog(
-            "Load Scene",
-            "",
-            1,
-            filters,
-            "ZScene Files (*.zsc)",
-            0 // Single file selection
-        );
-        if (path) {
-            fs::path fs_path(path);
-            sc.setName(path);
-            updateWindowTitle(fs_path.filename().string());
-            sc.load_from_file(path);
-            addToRecentFiles(path);
-            std::clog << "Menu action: Open file: " << path << "\n";
-        }
-    }
-
-    void _saveFile(scene& sc, bool saveAs){
-        if (saveAs && !sc.getName().empty() && fs::exists(sc.getName())) {
-            sc.save_to_file(sc.getName().c_str());
-            std::clog << "Menu action: Save file: " << sc.getName() << "\n";
-            return ;
-        } 
-
-        const char* filters[] = { "*.zsc" };
-        std::string title = saveAs ? "Save as scene" : "Save scene";
-        const char* path = tinyfd_saveFileDialog(
-            title.data(),
-            "scene.zsc",
-            1,
-            filters,
-            "ZScene Files (*.zsc)"
-        );
-        if (path) {
-            fs::path fs_path(path);
-            sc.setName(fs_path);
-            updateWindowTitle(fs_path.filename().string());
-            sc.save_to_file(path);
-            addToRecentFiles(path);
-            std::clog << "Menu action: Save file: " << path << "\n";
-        }
-    }
-
+    
     void update_render_dimensions() {
         render_width = std::max(600, window_width - gui_width);
         render_height = int(render_width / aspect_ratio);
