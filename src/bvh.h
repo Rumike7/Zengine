@@ -44,7 +44,6 @@ public:
             right = std::make_shared<bvh_node>(objects, mid, end);
         }
 
-        // Update AABB to enclose both children
         if (left && right)
             bbox = aabb(left->bounding_box(), right->bounding_box());
         else
@@ -76,23 +75,19 @@ public:
         return in;
     }
 
-    // Insert a new hittable object into the BVH
     void insert(std::shared_ptr<hittable> obj) {
         if (!obj) {
             std::cerr << "Error: Inserting null obj\n";
             return;
         }
         if (!left && !right) {
-            // Leaf node: create a new internal node
             left = obj;
             right = nullptr;
             bbox = obj->bounding_box();
         } else if (!right) {
-            // Single child: pair with new object
             right = obj;
             bbox = aabb(left->bounding_box(), right->bounding_box());
         } else {
-            // Internal node: insert into the child that minimizes AABB growth
             float left_cost = compute_sah_cost(left->bounding_box(), obj->bounding_box());
             float right_cost = compute_sah_cost(right->bounding_box(), obj->bounding_box());
 
@@ -130,14 +125,13 @@ public:
         }
     }
 
-    // Delete a hittable object from the BVH
     bool remove(const std::shared_ptr<hittable>& obj) {
         if (!obj) {
             std::cerr << "Error: Removing null obj\n";
         if (!left && !right) {
             return false;
         }
-            return false; // Empty node
+            return false; 
         }
 
         if (left == obj) {

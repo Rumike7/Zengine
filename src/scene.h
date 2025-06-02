@@ -33,14 +33,10 @@ enum class ObjectType {
     Cylinder,
     Prism,
     Cone,
-
-    //Debugging
     HollowCylinder,
     Hexagon,
-
-
-
     Count,
+
     //Further
     Torus,
     Tetrahedron,
@@ -73,34 +69,35 @@ enum class MaterialType {
 };
 
 std::map<ObjectType, std::pair<std::string, std::string>> object_type_map = {
-    {ObjectType::Sphere, {"Sphere", "\uE061"}},           // circle (filled)
-    {ObjectType::Box, {"Box", "\uE14F"}},                // square_3d_stack
-    {ObjectType::Cube, {"Cube", "\uE4C9"}},              // cube
-    {ObjectType::Triangle, {"Triangle", "\uE899"}},      // play_arrow (triangle-like)
-    {ObjectType::Rectangle, {"Rectangle", "\ue835"}},    // rectangle
-    {ObjectType::Disk, {"Disk", "\uE1A7"}},              // disc_full
-    {ObjectType::Ellipse, {"Ellipse", "\uE8B2"}},        // oval_horizontal
-    {ObjectType::Ring, {"Ring", "\uE3D6"}},              // panorama_fish_eye (thin circle)
-    {ObjectType::Cylinder, {"Cylinder", "\uE1B0"}},      // cylinder
-    {ObjectType::Cone, {"Cone", "\uE8EF"}},              // traffic_cone
-    {ObjectType::Torus, {"Torus", "\uE1A6"}},            // donut_large
-    {ObjectType::Ellipsoid, {"Ellipsoid", "\uE8B3"}},    // oval_vertical
-    {ObjectType::Capsule, {"Capsule", "\uE8E2"}},        // pill
-    {ObjectType::HollowCylinder, {"Hollow Cylinder", "\uE1A5"}}, // donut_small
-    {ObjectType::Hexagon, {"Hexagon", "\uE2B2"}},        // hexagon
-    {ObjectType::Prism, {"Prism", "\uE4C9"}},            // cube (fallback, as no prism icon)
-    {ObjectType::Polyhedron, {"Polyhedron", "\uE8B4"}},  // polyline (facet-like)
-    {ObjectType::Frustum, {"Frustum", "\uE1B1"}},        // conical_flask
-    {ObjectType::Wedge, {"Wedge", "\uE8E5"}},            // pie_chart (wedge-like)
-    {ObjectType::Tetrahedron, {"Tetrahedron", "\uE8B1"}}, // triangle (3D-like)
-    {ObjectType::Octahedron, {"Octahedron", "\uE3C8"}},  // octagon
-    {ObjectType::Count, {"End Stop", "\uE8CC"}},         // stop
-    {ObjectType::Plane, {"Plane", "\uE7BA"}},            // square
-    {ObjectType::SphericalShell, {"SphericalShell", "\uE062"}}, // circle_outlined
-    {ObjectType::RoundedBox, {"RoundedBox", "\uE7BB"}},  // rounded_square
-    {ObjectType::Paraboloid, {"Paraboloid", "\uE8F8"}},  // waveform_path
-    {ObjectType::Hyperboloid, {"Hyperboloid", "\uE2C3"}}, // hourglass_empty
-    {ObjectType::InfiniteCylinder, {"InfiniteCylinder", "\uE1B0"}} // cylinder
+    {ObjectType::Disk, {"Disk", "\uef4a"}},              
+    {ObjectType::Rectangle, {"Rectangle", "\ueb54"}},    
+    {ObjectType::Ellipse, {"Ellipse", "\ue3cf"}},     
+    {ObjectType::Triangle, {"Triangle", "\uf0a8"}},  
+    {ObjectType::Cone, {"Cone", "\ue199"}},         
+    {ObjectType::Prism, {"Prism", "\uea25"}},            
+    {ObjectType::Polyhedron, {"Polyhedron", "\uebbb"}}, 
+    {ObjectType::Hexagon, {"Hexagon", "\ueb39"}},      
+    {ObjectType::Cube, {"Cube", "\ue9fe"}},            
+    {ObjectType::Ring, {"Ring", "\ue57b"}},   
+    {ObjectType::Box, {"Box", "\ue1a1"}}, 
+    {ObjectType::Sphere, {"Sphere", "\ue894"}},          
+    {ObjectType::Ellipsoid, {"Ellipsoid", "\uef4a"}},
+    {ObjectType::Capsule, {"Capsule", "\ue578"}}, 
+    {ObjectType::Cylinder, {"Cylinder", "\ue39e"}},      
+    {ObjectType::HollowCylinder, {"Hollow Cylinder", "\ue39e"}},
+     
+    {ObjectType::Count, {"Count", "\uea26"}},
+    {ObjectType::Torus, {"Torus", "\uE1A6"}},           
+    {ObjectType::Frustum, {"Frustum", "\uE1B1"}},        
+    {ObjectType::Wedge, {"Wedge", "\uE8E5"}},           
+    {ObjectType::Tetrahedron, {"Tetrahedron", "\uE8B1"}},
+    {ObjectType::Octahedron, {"Octahedron", "\uE3C8"}},
+    {ObjectType::Plane, {"Plane", "\uE7BA"}},          
+    {ObjectType::SphericalShell, {"SphericalShell", "\uE062"}}, 
+    {ObjectType::RoundedBox, {"RoundedBox", "\uE7BB"}},  
+    {ObjectType::Paraboloid, {"Paraboloid", "\uE8F8"}},  
+    {ObjectType::Hyperboloid, {"Hyperboloid", "\uE2C3"}}, 
+    {ObjectType::InfiniteCylinder, {"InfiniteCylinder", "\uE1B0"}} 
 };
 
 constexpr std::array<const char*, 5> material_names = {
@@ -176,9 +173,8 @@ struct state {
     float& vertices_count()     { return data[43]; }
     const float& vertices_count() const { return data[43]; }
 
-    // Helper functions for vertices (unchanged)
     void set_vertex(size_t index, const point3& vertex) {
-        if (index >= 16) return; // Max 16 vertices
+        if (index >= 16) return;
         size_t offset = 44 + index * 3;
         data[offset] = static_cast<float>(vertex.x);
         data[offset + 1] = static_cast<float>(vertex.y);
@@ -235,7 +231,7 @@ struct state {
         cube_size() = 0.4f;                  
         u()[0] = 0.0f; u()[1] = 1.0f; u()[2] = 0.0f; 
         v()[0] = 0.0f; v()[1] = 0.0f; v()[2] = 1.0f; 
-        axis()[0] = 0.0f; axis()[1] = 1.0f; axis()[2] = 0.0f; // Axis (y-axis)
+        axis()[0] = 0.0f; axis()[1] = 1.0f; axis()[2] = 0.0f;
         height() = 0.5f;                     // Cylinder/cone/prism height
         major_radius() = 0.6f;               // Torus major radius
         minor_radius() = 0.2f;               // Torus minor radius
@@ -267,7 +263,6 @@ struct state {
 
 class scene {
 private:
-    // Command pattern for undo/redo
     class Command {
     public:
         virtual ~Command() = default;
@@ -318,12 +313,11 @@ private:
 
     class DeleteCommand : public Command {
     public:
-        DeleteCommand(scene* s, std::shared_ptr<hittable> obj, int id)
-            : scene_(s), obj_(obj), id_(id) {}
+        DeleteCommand(scene* s, int id)
+            : scene_(s), id_(id) {}
         void execute() override {
             states_ = scene_->states[id_];
             objs_ = scene_->object_map[id_];
-            assert(!states_.empty());
             scene_->object_map.erase(id_);
             scene_->states.erase(id_);
             // scene_->bvh_world->remove(obj_);
@@ -337,7 +331,6 @@ private:
         }
     private:
         scene* scene_;
-        std::shared_ptr<hittable> obj_;
         int id_;
         std::vector<state> states_;
         std::vector<std::shared_ptr<hittable>> objs_;
@@ -362,7 +355,6 @@ private:
             auto& state_vec = scene_->states[id_];
             auto it = scene_->object_map.find(id_);
             if (it != scene_->object_map.end()) {
-                // Revert position in state
                 state_vec.back().position -= offset_;
                 it->second.back()->move_by(-offset_);
                 // scene_->bvh_world->update(it->second);
@@ -386,7 +378,6 @@ public:
         grid_visualization = std::make_shared<grid>();
     }
 
-    // Select an object by casting a ray
     bool select_object(const ray& r, double max_t) {
         hit_record rec;
         double closest_t = max_t;
@@ -508,8 +499,7 @@ public:
     void delete_object(int id) {
         auto it = object_map.find(id);
         if (it != object_map.end()) {
-            auto obj = it->second.back();
-            execute_command(std::make_unique<DeleteCommand>(this, obj, id));
+            execute_command(std::make_unique<DeleteCommand>(this, id));
         }
     }
 
@@ -531,7 +521,6 @@ public:
         return bvh_world;
     }
 
-    // Initialize the scene with a default object
     void initialize() {
         bvh_world = make_shared<bvh_node>();
         state st;
@@ -540,11 +529,10 @@ public:
 
     std::unique_ptr<state> get_state(int id) {
         if (states.find(id) != states.end() && !states[id].empty()) {
-            return std::make_unique<state>(states[id].back()); // returns a copy
+            return std::make_unique<state>(states[id].back()); 
         }
         return nullptr;
     }
-    // Grid-related functions
     bool is_grid_shown() const { return show_grid; }
 
     void toggle_grid() {
@@ -566,7 +554,13 @@ public:
         return maps;
     }
 
-    // Get/set selected object ID
+    shared_ptr<hittable> get_object(int id) const {
+        auto it = object_map.find(id);
+        if (it != object_map.end() && !it->second.empty()) {
+            return it->second.back();
+        }
+        return nullptr;
+    }
     int get_selected_object_id() const { return selected_object_id; }
     void set_selected_object_id(int id) {
         if (id == -1 || object_map.find(id) != object_map.end()) {
@@ -574,7 +568,6 @@ public:
         }
     }
 
-    // Undo/redo support
     void undo() {
         if (!undo_stack.empty()) {
             auto cmd = std::move(undo_stack.top());
@@ -614,16 +607,19 @@ public:
 
     void rebuild_bvh() {
         if (!bvh_needs_rebuild) return;
-
+        if(object_map.empty()) {
+            bvh_world = std::make_shared<bvh_node>();
+            return;
+        }
         std::vector<std::shared_ptr<hittable>> objects;
         objects.reserve(object_map.size());
         for (const auto& [id, obj_vec] : object_map) {
             objects.push_back(obj_vec.back());
         }
-        objects.insert(objects.end(), pending_objects.begin(), pending_objects.end());
+        // objects.insert(objects.end(), pending_objects.begin(), pending_objects.end());
 
         bvh_world = std::make_shared<bvh_node>(objects, 0, objects.size());
-        pending_objects.clear();
+        // pending_objects.clear();
         bvh_needs_rebuild = false;
     }
 
@@ -635,7 +631,7 @@ private:
     std::unordered_map<int, std::vector<state>> states;
     shared_ptr<bvh_node> bvh_world;
     std::shared_ptr<grid> grid_visualization;
-    bool show_grid = true;
+    bool show_grid = false;
     int selected_object_id = -1;
     int next_id = 0;
     vec3 accumulated_offset;
@@ -811,7 +807,7 @@ void scene::save_to_file(const std::string& filename) const {
 
     // Header
     const char magic[] = "ZSC";
-    uint32_t version = 3; // Updated version for new data array format
+    uint32_t version = 3; 
     uint32_t state_map_size = static_cast<uint32_t>(states.size());
     uint32_t n_id = static_cast<uint32_t>(next_id);
     uint32_t sh_grid = static_cast<uint32_t>(show_grid);
@@ -826,7 +822,6 @@ void scene::save_to_file(const std::string& filename) const {
     out.write(reinterpret_cast<const char*>(&name_sc_len), sizeof(name_sc_len));
     out.write(name.data(), name_sc_len);
 
-    // Serialize each state's vector
     for (const auto& [id, state_vec] : states) {
         out.write(reinterpret_cast<const char*>(&id), sizeof(id));
         state s = state_vec.back();
@@ -912,7 +907,6 @@ void scene::load_from_file(const std::string& filename) {
     name.resize(name_sc_len);
     in.read(name.data(), name_sc_len);
 
-    // Read each state's vector
     for (uint32_t i = 0; i < state_map_size; ++i) {
         int id;
         in.read(reinterpret_cast<char*>(&id), sizeof(id));
@@ -969,7 +963,6 @@ void scene::load_from_file(const std::string& filename) {
         in.read(reinterpret_cast<char*>(&s.noise_scale), sizeof(s.noise_scale));
         in.read(reinterpret_cast<char*>(&s.fuzz), sizeof(s.fuzz));
 
-        // Read entire data array
         in.read(reinterpret_cast<char*>(s.data.data()), sizeof(float) * s.data.size());
 
         states[id] = std::vector<state>{s};

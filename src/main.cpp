@@ -16,8 +16,11 @@
 #include "material.h"
 #include "quad.h"
 #include "sphere.h"
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
-void bouncing_spheres() {
+void bouncing_spheres() { 
     hittable_list world;
 
     auto checker = make_shared<checker_texture>(0.32, color(.2, .3, .1), color(.9, .9, .9));
@@ -500,7 +503,14 @@ void render_scene(){
     cam.render(scene);
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    #ifdef _WIN32
+    AllocConsole(); 
+    freopen("CONOUT$", "w", stdout); 
+    freopen("CONOUT$", "w", stderr);
+    std::clog << "Console initialized" << std::endl;
+    #endif
+    
     switch (0) {
         case 1:  bouncing_spheres();          break;
         case 2:  checkered_spheres();         break;
@@ -513,4 +523,5 @@ int main() {
         case 9:  final_scene(800, 10000, 40); break;
         default: render_scene(); break;
     }
+    return 0;
 }
