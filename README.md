@@ -1,4 +1,4 @@
-# Zengine - Ray Tracing Engine
+# Zengine
 
 ![Zengine Logo](assets/logo.jpeg) 
 
