@@ -11,7 +11,9 @@ Zengine is a real-time ray tracing engine that constructs scenes by simulating l
 - Material system with optical properties
 - Quality presets for workflow optimization
 - PPM image export
-- Saving & loading scene
+- Saving & loading a scene
+- Parallelize ray calculations
+- Undo & redo functions
 
 ## Usage Tips
 

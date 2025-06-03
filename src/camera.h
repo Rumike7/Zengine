@@ -108,7 +108,7 @@ public:
     color background = color(0.5, 0.7, 1.0);
     double move_speed = 0.1;
     double mouse_sensitivity = 0.005;
-    float vfov = 20;
+    float vfov = 30;
     point3 lookfrom = point3(10,1,0);
     point3 lookat = point3(0, 0, 0);
     vec3 vup = vec3(0, 1, 0);
@@ -170,16 +170,14 @@ public:
             
             SDL_Event event;
             handle_poll_event(event, sc);
-            
-
-            update_camera();
+            if(!gui::savingPPM)update_camera();
 
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplSDL2_NewFrame();
             ImGui::NewFrame();
             
 
-            gui::render_top_bar(sc, running, use_defocus, vfov, focus_dist, max_depth, samples_per_pixel, pixel_samples_scale, topbar_height);
+            gui::render_top_bar(sc, running, use_defocus, vfov, focus_dist, max_depth, samples_per_pixel, pixel_samples_scale, topbar_height, background);
             gui::render_object_buttons(sc, render_width, topbar_height, gui_width, window_height, st, lookfrom, yaw, pitch, render_height, control_height);
             
 
@@ -274,7 +272,47 @@ public:
                 ImGuiWindowFlags_NoInputs |
                 ImGuiWindowFlags_NoCollapse);
                 ImGui::Image((ImTextureID)(uintptr_t)render_texture, ImVec2(float(render_width), float(render_height)));
+        
+            if (gui::savingPPM && ImGui::IsItemVisible()) {
+                ImVec2 image_pos = ImGui::GetItemRectMin();
+                ImVec2 image_size = ImGui::GetItemRectSize();
                 
+                ImDrawList* draw_list = ImGui::GetWindowDrawList();
+                draw_list->AddRectFilled(
+                    image_pos, 
+                    ImVec2(image_pos.x + image_size.x, image_pos.y + image_size.y),
+                    IM_COL32(0, 0, 0, 128)
+                );
+                
+                const char* loading_text = "Saving PPM Image...";
+                ImVec2 text_size = ImGui::CalcTextSize(loading_text);
+                ImVec2 text_pos = ImVec2(
+                    image_pos.x + (image_size.x - text_size.x) * 0.5f,
+                    image_pos.y + (image_size.y - text_size.y) * 0.5f
+                );
+                
+                draw_list->AddText(text_pos, IM_COL32(255, 255, 255, 255), loading_text);
+                
+                // Optional: Add a progress indicator or spinner
+                static float rotation = 0.0f;
+                rotation += ImGui::GetIO().DeltaTime * 2.0f;
+                
+                ImVec2 center = ImVec2(
+                    image_pos.x + image_size.x * 0.5f,
+                    image_pos.y + image_size.y * 0.5f + 30
+                );
+                
+                float radius = 15.0f;
+                for (int i = 0; i < 8; i++) {
+                    float angle = rotation + (i * 3.14159f / 4);
+                    float alpha = 1.0f - (i / 8.0f);
+                    ImVec2 pos = ImVec2(
+                        center.x + cos(angle) * radius,
+                        center.y + sin(angle) * radius
+                    );
+                    draw_list->AddCircleFilled(pos, 3.0f, IM_COL32(255, 255, 255, (int)(alpha * 255)));
+                }
+            }
             if (gui::should_open_modal) {
                 ImGui::OpenPopup("Add or Update Object");
                 gui::should_open_modal = false;
@@ -284,7 +322,7 @@ public:
 
             ImGui::SetNextWindowPos(ImVec2(render_width - 130, topbar_height + render_height - 50));
             ImGui::SetNextWindowSize(ImVec2(120, 40));
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));  // Remove all padding
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
             ImGui::Begin("##ResetCameraButton", nullptr, 
                 ImGuiWindowFlags_NoTitleBar | 
                 ImGuiWindowFlags_NoResize | 
@@ -298,7 +336,7 @@ public:
                 ImGui::GetContentRegionAvail().y  
             ));
             if (ImGui::IsItemClicked()) {
-                reset_camera();
+                if(!gui::savingPPM)reset_camera();
             }
 
             ImGui::End();
@@ -317,14 +355,18 @@ public:
             if (frame_time < target_frame_time) {
                 SDL_Delay(Uint32((target_frame_time - frame_time) * 1000));
             }
-            sc.rebuild_bvh();
+            if (!gui::savingPPM)sc.rebuild_bvh();
         }
 
         SDL_FreeFormat(format);
         return true;
     }
 
-    void render(const hittable_list& sc) {
+    void savePPM(const scene& sc) {
+        if(gui::savingPPM) {
+            std::cerr << "Render is already in progress, please wait...\n";
+            return;
+        }
         const char* filterPatterns[1] = {"*.ppm"};
         const char* savePath = tinyfd_saveFileDialog(
             "Save Rendered Image",           
@@ -338,40 +380,54 @@ public:
             std::cerr << "Save operation cancelled by user\n";
             return;
         }
-        
-        std::ofstream ofs(savePath);
-        if (!ofs.is_open()) {
-            std::cerr << "Failed to open file: " << savePath << "\n";
-            return;
-        }
-        if (!ofs.is_open()) {
-            std::cerr << "Failed to open file\n";
-            return;
-        }
+        int local_render_width = render_width;
+        int local_render_height = render_height;        
 
-        float current_max_depth = max_depth;
-        float current_samples_per_pixel = samples_per_pixel;
-        float current_pixel_samples_scale = pixel_samples_scale;
-        max_depth = 50;
-        samples_per_pixel = 100;
-        pixel_samples_scale = 1.0 / samples_per_pixel;
-
-        ofs << "P3\n" << render_width << ' ' << render_height << "\n255\n";
-        for (int j = 0; j < render_height; j++) {
-            std::cerr << "\rScanlines remaining: " << (render_height - j) << ' ' << std::flush;
-            for (int i = 0; i < render_width; ++i) {
-                color pixel_color(0, 0, 0);
-                for (int sample = 0; sample < samples_per_pixel; ++sample) {
-                    ray r = get_ray(i, j);
-                    pixel_color += ray_color(r, max_depth, sc);
-                }
-                write_color(ofs, pixel_samples_scale * pixel_color);
+        std::thread render_thread([this, savePath, &sc, local_render_height, local_render_width]() {
+            std::ofstream ofs(savePath);
+            if (!ofs.is_open()) {
+                std::cerr << "Failed to open file: " << savePath << "\n";
+                return;
             }
-        }
-        ofs.close();
-        max_depth = current_max_depth;
-        samples_per_pixel = current_samples_per_pixel;
-        pixel_samples_scale = current_pixel_samples_scale;
+
+            float current_max_depth = 50;
+            float current_samples_per_pixel = 100;
+            float current_pixel_samples_scale = 1.0 / current_samples_per_pixel;
+
+            gui::savingPPM = true;
+
+            ofs << "P3\n" << local_render_width << ' ' << local_render_height << "\n255\n";
+            if (!ofs.good()) {
+                std::cerr << "Failed to write PPM header to file: " << savePath << "\n";
+                ofs.close();
+                gui::savingPPM = false;
+                return;
+            }
+            for (int j = 0; j < local_render_height; j++) {
+                std::cerr << "\rScanlines remaining: " << (local_render_height - j) << ' ' << std::flush;
+                for (int i = 0; i < local_render_width; ++i) {
+                    color pixel_color(0, 0, 0);
+                    for (int sample = 0; sample < current_samples_per_pixel; ++sample) {
+                        ray r = get_ray(i, j);
+                        pixel_color += ray_color(r, current_max_depth, sc);
+                    }
+                    write_color(ofs, current_pixel_samples_scale * pixel_color);
+                }
+            }
+            bool success = ofs.good();
+            ofs.close();
+
+            gui::savingPPM = false;
+
+            if (success) {
+                std::cerr << "\nRender saved successfully to: " << savePath << "\n";
+            } else {
+                std::cerr << "\nRender failed to save completely to: " << savePath << "\n";
+            }
+        });
+
+        render_thread.detach();
+
     }
 
 
@@ -400,6 +456,8 @@ private:
     double threshold = 0.001;
     std::vector<color> pixel_buffer;
     std::vector<Uint32> pixel_data;
+    mutable std::mutex camera_mutex;
+
 
 
 
@@ -548,22 +606,7 @@ private:
         }
         return background;
     }
-    color ray_color(const ray& r, int depth, const hittable_list& sc) const {
-        if (depth <= 0)
-            return color(0, 0, 0);
-
-        const hittable& world = sc;
-        hit_record rec;
-        if (world.hit(r, interval(threshold, infinity), rec)) {
-            ray scattered;
-            color attenuation;
-            color color_from_emission = rec.mat->emitted(rec.u, rec.v, rec.p);
-            if (!rec.mat->scatter(r, rec, attenuation, scattered))
-                return color_from_emission;
-            return color_from_emission + attenuation * ray_color(scattered, depth - 1, sc);
-        }
-        return background;
-    }
+    
 
     ray get_ray(int i, int j, bool precise = false) const {
         auto offset = precise ? vec3(0.5, 0.5, 0) : sample_square();
@@ -630,10 +673,11 @@ private:
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
                 window_width = event.window.data1;
                 window_height = event.window.data2;
-                update_render_dimensions();
+                if(!gui::savingPPM)update_render_dimensions();
                 pixel_buffer.resize(render_width * render_height, color(0, 0, 0));
                 pixel_data.resize(render_width * render_height);
             }
+            if(gui::savingPPM)continue;
             if (!io.WantCaptureMouse) {
                 if (event.type == SDL_MOUSEBUTTONDOWN) {
                     if (event.button.button == SDL_BUTTON_LEFT && valid(event.button.x, event.button.y)) {
@@ -713,9 +757,7 @@ private:
                 }
 
                 if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_p) {
-                    hittable_list world;
-                    render(hittable_list(sc.get_world_ptr()));
-                    std::clog << "PPM saved\n";
+                    savePPM(sc);
                 }
                 const Uint8* keys = SDL_GetKeyboardState(NULL);
                 vec3 forward(cos(pitch) * cos(yaw), sin(pitch), cos(pitch) * sin(yaw));

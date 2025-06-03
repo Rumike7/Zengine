@@ -24,8 +24,7 @@ namespace gui {
     bool is_updating = false;
     bool should_open_modal = false;
     bool should_open_delete = false;
-
-
+    std::atomic<bool> savingPPM{false};
 
     std::string ExtractFilename(const std::string& path) {
         size_t last_slash = path.find_last_of("/\\");
@@ -35,7 +34,7 @@ namespace gui {
     void updateWindowTitle(const std::string& file_name) {
         std::string name = ExtractFilename(file_name);
         if(window == nullptr)return;
-        std::string title = (file_name.empty() ? "Untitled" : file_name)+ (isSaved ? "" :"*") + " - ZEngine";
+        std::string title = (name.empty() ? "Untitled" : name)+ (isSaved ? "" :"*") + " - ZEngine";
         SDL_SetWindowTitle(window, title.c_str());
     }
 
@@ -173,7 +172,7 @@ namespace gui {
     void render_add_or_update_modal(scene& sc, state& st){
         if (ImGui::BeginPopupModal("Add or Update Object", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {            
             static float color1[3] = {0.8f, 0.3f, 0.3f}; 
-            static float color2[3] = {0.8f, 0.3f, 0.3f};
+            static float color2[3] = {0.2f, 0.2f, 0.2f};
             static bool initialized = false;
             if(selected_object_id != -1 && !is_updating){
                 if (auto ptr = sc.get_state(selected_object_id)) {
@@ -464,7 +463,7 @@ namespace gui {
 
 
     void render_top_bar(scene& sc, bool& running, bool& use_defocus, float& vfov, float& focus_dist, int& max_depth, int& samples_per_pixel
-        , double& pixel_samples_scale, float& topbar_height){
+        , double& pixel_samples_scale, float& topbar_height, color& background) {
         ImGuiIO& io = ImGui::GetIO(); 
 
         if (ImGui::BeginMainMenuBar()) {
@@ -611,9 +610,15 @@ namespace gui {
 
                     ImGui::EndMenu();
                 }
-
-
-
+                if (ImGui::BeginMenu("Background Color")) {
+                float background_color[3] = {static_cast<float>(background.x), static_cast<float>(background.y), static_cast<float>(background.z)};
+                    bool color_changed = ImGui::ColorEdit3("Background Color", background_color, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_Float);
+                    if (color_changed) {
+                        background = color(background_color[0], background_color[1], background_color[2]);
+                    }
+                    ImGui::EndMenu();
+                }
+                
                 pixel_samples_scale = 1.0 / samples_per_pixel;
 
                 ImGui::EndMenu();
