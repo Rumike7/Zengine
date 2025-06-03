@@ -1,5 +1,3 @@
-# Zengine
-
 ![Zengine Logo](assets/logo.jpeg) 
 
 Zengine is a real-time ray tracing engine that constructs scenes by simulating light transport across various materials and geometric shapes based on their optical properties.
